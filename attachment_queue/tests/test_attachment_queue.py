@@ -2,10 +2,9 @@
 
 from unittest import mock
 
-from odoo_test_helper import FakeModelLoader
-
 from odoo.exceptions import UserError
 from odoo.modules.registry import Registry
+from odoo.orm.model_classes import add_to_registry
 from odoo.tools import mute_logger
 
 from odoo.addons.base.tests.common import BaseCommon
@@ -22,6 +21,23 @@ MOCK_PATH_RUN = (
 
 
 class TestAttachmentBaseQueue(BaseCommon):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # Odoo 19 native test-model registration. Replaces the
+        # odoo-test-helper FakeModelLoader pattern, which broke on 19
+        # (MetaModel.module_to_models was renamed/privatized). Class-scope
+        # is required: add_to_registry mutates the shared Registry singleton.
+        from .test_models import AttachmentQueue as FakeAttachmentQueue
+
+        add_to_registry(cls.registry, FakeAttachmentQueue)
+        cls.registry._setup_models__(cls.env.cr, ["attachment.queue"])
+        cls.registry.init_models(
+            cls.env.cr, ["attachment.queue"], {"models_to_check": True}
+        )
+        cls.addClassCleanup(cls.registry.__delitem__, "attachment.queue")
+        cls.aq_model = cls.env["attachment.queue"]
+
     def _create_dummy_attachment(self, override=False, no_job=False):
         override = override or {}
         vals = DUMMY_AQ_VALS.copy()
@@ -31,20 +47,6 @@ class TestAttachmentBaseQueue(BaseCommon):
                 self.env["attachment.queue"].with_context(queue_job__no_delay=True)
             ).create(vals)
         return self.env["attachment.queue"].create(vals)
-
-    def setUp(self):
-        super().setUp()
-        self.loader = FakeModelLoader(self.env, self.__module__)
-        self.loader.backup_registry()
-        from .test_models import AttachmentQueue
-
-        self.loader.update_registry((AttachmentQueue,))
-        self.aq_model = self.env["attachment.queue"]
-
-    def tearDown(self):
-        super().tearDown()
-        self.loader.restore_registry()
-        return super().tearDown()
 
     def test_job_created(self):
         with trap_jobs() as trap:
