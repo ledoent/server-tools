@@ -29,6 +29,7 @@ class SyncCommon(TransactionCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.env = cls.env(context=dict(cls.env.context, tracking_disable=True))
         cls.backend = cls.env.ref("fs_storage.fs_storage_demo")
         cls.filedata = base64.b64encode(b"This is a simple file")
         cls.directory_input = "test_import"
