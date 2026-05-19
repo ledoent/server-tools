@@ -47,8 +47,7 @@ class AttachmentQueue(models.Model):
     state_message = fields.Text()
     failure_emails = fields.Char(
         compute="_compute_failure_emails",
-        help="Comma-separated list of email addresses to be notified in case of"
-        "failure",
+        help="Comma-separated list of email addresses to be notified in case offailure",
     )
 
     def _job_attrs(self):
@@ -85,7 +84,7 @@ class AttachmentQueue(models.Model):
         Run the process for an individual attachment queue from a dedicated button
         """
         try:
-            self._cr.execute(
+            self.env.cr.execute(
                 """
                 SELECT id
                 FROM attachment_queue
@@ -102,7 +101,7 @@ class AttachmentQueue(models.Model):
     def run_as_job(self):
         """Run the process for an individual attachment queue from a async job"""
         try:
-            self._cr.execute(
+            self.env.cr.execute(
                 """
                 SELECT id
                 FROM attachment_queue
