@@ -186,9 +186,23 @@ def initialize_sentry(config):
         def sentry_application_call(self, environ, start_response):
             middleware = getattr(self, "_sentry_wsgi_middleware", None)
             if middleware is None:
-                middleware = SentryWsgiMiddleware(
-                    _ORIGINAL_APPLICATION_CALL.__get__(self, type(self))
-                )
+                try:
+                    middleware = SentryWsgiMiddleware(
+                        _ORIGINAL_APPLICATION_CALL.__get__(self, type(self))
+                    )
+                except Exception:
+                    # A sentry-side fault (sentry-sdk bug, exotic env, OOM
+                    # during middleware construction) must never break user
+                    # requests. Log once, then cache the unwrapped bound
+                    # method as the per-instance "middleware" so subsequent
+                    # requests skip the failing construction path.
+                    _logger.exception(
+                        "sentry: failed to construct SentryWsgiMiddleware; "
+                        "bypassing sentry for this Application instance"
+                    )
+                    middleware = _ORIGINAL_APPLICATION_CALL.__get__(
+                        self, type(self)
+                    )
                 self._sentry_wsgi_middleware = middleware
             return middleware(environ, start_response)
 
