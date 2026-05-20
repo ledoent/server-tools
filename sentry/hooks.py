@@ -36,6 +36,21 @@ except ImportError:
         if cp.has_section("sentry"):
             sentry_config = dict(cp["sentry"])
 
+# 18.0 read sentry_* keys from the main [options] section. 19.0 requires
+# a dedicated [sentry] section. Warn upgrading admins whose config didn't
+# move so they don't silently lose error reporting.
+if not sentry_config:
+    _legacy_keys = sorted(k for k in config.options if k.startswith("sentry_"))
+    if _legacy_keys:
+        _logger.warning(
+            "sentry: found %d sentry_* key(s) in odoo.conf [options] but no "
+            "[sentry] section. As of 19.0, sentry config must live in its own "
+            "[sentry] section (or in server_environment). Keys ignored: %s. "
+            "See server-tools/sentry/readme/CONFIGURE.md.",
+            len(_legacy_keys),
+            ", ".join(_legacy_keys),
+        )
+
 HAS_SENTRY_SDK = True
 _ORIGINAL_APPLICATION_CALL = None
 try:
