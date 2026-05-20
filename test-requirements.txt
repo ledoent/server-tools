@@ -1,0 +1,4 @@
+# REMOVE BEFORE OCA UPSTREAM FILING — temporary until ledoent/server-tools#2
+# (attachment_queue 19.0 migration) merges and the odoo-addon-attachment_queue
+# 19.0 wheel is published to the OCA wheelhouse.
+odoo-addon-attachment_queue @ git+https://github.com/ledoent/server-tools.git@19.0-mig-attachment_queue#subdirectory=attachment_queue
