@@ -15,7 +15,7 @@ class VacuumRule(models.Model):
         required=True,
     )
     filename_pattern = fields.Char(
-        help=("If set, only attachments containing this pattern will be" " deleted.")
+        help=("If set, only attachments containing this pattern will be deleted.")
     )
     inheriting_model = fields.Char(
         help="If set, this model will be searched and only related attachments will "
@@ -110,8 +110,8 @@ class VacuumRule(models.Model):
             ):
                 raise exceptions.ValidationError(
                     self.env._(
-                        "No inheritance of ir.attachment "
-                        f"was found on model {rule.inheriting_model}"
+                        "No inheritance of ir.attachment was found on model %(model)s",
+                        model=rule.inheriting_model,
                     )
                 )
             attachment_field = self.env[rule.inheriting_model]._inherits.get(
@@ -120,8 +120,8 @@ class VacuumRule(models.Model):
             if not attachment_field:
                 raise exceptions.ValidationError(
                     self.env._(
-                        "Cannot find relation to ir.attachment "
-                        f"on model {rule.inheriting_model}"
+                        "Cannot find relation to ir.attachment on model %(model)s",
+                        model=rule.inheriting_model,
                     )
                 )
 

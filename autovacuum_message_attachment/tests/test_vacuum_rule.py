@@ -4,7 +4,7 @@
 import base64
 from datetime import date, timedelta
 
-from odoo import api, exceptions
+from odoo import exceptions
 from odoo.modules.registry import Registry
 from odoo.tests import common
 from odoo.tools import DEFAULT_SERVER_DATE_FORMAT
@@ -23,16 +23,12 @@ class TestVacuumRule(common.TransactionCase):
         }
         return self.message_obj.create(vals)
 
-    def tearDown(self):
-        self.registry.leave_test_mode()
-        super().tearDown()
-
     def setUp(self):
         super().setUp()
-        self.registry.enter_test_mode(self.env.cr)
-        self.env = api.Environment(
-            self.registry.test_cr, self.env.uid, self.env.context
-        )
+        # autovacuum's batch_unlink commits in a separate registry cursor;
+        # enter test mode so those cursors wrap the test transaction and the
+        # deletions are visible to (and rolled back with) this test.
+        self.registry_enter_test_mode()
         self.subtype = self.env.ref("mail.mt_comment")
         self.message_obj = self.env["mail.message"]
         self.attachment_obj = self.env["ir.attachment"]
