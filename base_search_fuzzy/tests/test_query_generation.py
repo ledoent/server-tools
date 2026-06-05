@@ -39,7 +39,7 @@ class QueryGenerationCase(BaseCommon):
         )
         self.assertEqual(
             complete_where,
-            b'SELECT FROM "res_partner" WHERE "res_partner"."name" % \'test\'',
+            b'SELECT FROM "res_partner" WHERE ("res_partner"."name") % \'test\'',
         )
 
     def test_fuzzy_where_generation_translatable(self):
@@ -60,11 +60,13 @@ class QueryGenerationCase(BaseCommon):
             query.where_clause.params,
         )
 
-        self.assertIn(
-            b"% 'Goschaeftlic'",
+        # The JSON accessor must be parenthesized: % binds tighter than ->>,
+        # so the bare form fails with "operator does not exist: jsonb ->> boolean"
+        self.assertEqual(
             complete_where,
+            b'SELECT FROM "res_partner_category" WHERE '
+            b"(\"res_partner_category\".\"name\"->>'en_US') % 'Goschaeftlic'",
         )
-        self.assertIn(b'"res_partner_category"."name"', complete_where)
 
     def test_fuzzy_search(self):
         """Test the fuzzy search itself."""

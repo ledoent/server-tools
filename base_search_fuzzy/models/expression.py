@@ -12,15 +12,22 @@ from odoo.tools import SQL
 def _optimize_trigram_similarity(condition, model):
     """Register the PostgreSQL pg_trgm similarity operator ``%``.
 
-    Emits ``<field> %% <value>`` so callers can write
+    Emits ``(<field>) %% <value>`` so callers can write
     ``[("name", "%", "foo")]`` and have it rendered as a trigram-similarity
     predicate, which a GIN/GiST trgm_ops index can accelerate.
+
+    The field expression is parenthesized so the predicate is correct for a
+    translatable field, which renders as the bare JSON accessor
+    ``name->>'en_US'``: ``->>`` binds looser than ``%``, so without the
+    parentheses ``name->>'en_US' %% 'foo'`` parses as
+    ``name->>('en_US' %% 'foo')``. The parentheses also make the predicate
+    match the expression index ``trgm_index`` builds for translatable columns.
     """
     field_expr = condition.field_expr
     value = condition.value
 
     def _to_sql(model_, alias, query):
         sql_field = model_._field_to_sql(alias, field_expr, query)
-        return SQL("%s %% %s", sql_field, value)
+        return SQL("(%s) %% %s", sql_field, value)
 
     return Domain.custom(to_sql=_to_sql)
