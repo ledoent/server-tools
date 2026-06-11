@@ -164,17 +164,19 @@ class QueryGenerationCase(BaseCommon):
         )
 
     def test_get_not_used_index_collides_on_other_table(self):
+        # Deliberately not name_gin_idx: the module's demo data creates that
+        # one on res_partner, which would collide with this CREATE INDEX.
         self.env.cr.execute(
-            "CREATE INDEX name_gin_idx ON res_users USING btree (login)"
+            "CREATE INDEX collide_gin_idx ON res_users USING btree (login)"
         )
         try:
             taken, suggested = self.TrgmIndex.get_not_used_index(
-                "name_gin_idx", "res_partner"
+                "collide_gin_idx", "res_partner"
             )
             self.assertFalse(taken)
-            self.assertEqual(suggested, "name_gin_idx2")
+            self.assertEqual(suggested, "collide_gin_idx2")
         finally:
-            self.env.cr.execute("DROP INDEX IF EXISTS name_gin_idx")
+            self.env.cr.execute("DROP INDEX IF EXISTS collide_gin_idx")
 
     def test_get_not_used_index_same_table_reuses(self):
         self.env.cr.execute(
