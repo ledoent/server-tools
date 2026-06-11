@@ -93,6 +93,43 @@ class QueryGenerationCase(BaseCommon):
         self.assertIn(partner2.id, res.ids)
         self.assertNotIn(partner3.id, res.ids)
 
+    def test_fuzzy_search_translatable(self):
+        """Test the fuzzy search on a translatable field."""
+        if self.TrgmIndex._trgm_extension_exists() != "installed":
+            return
+
+        if not self.TrgmIndex.index_exists("res.partner.category", "name"):
+            field_category_name = self.env.ref("base.field_res_partner_category__name")
+            trgm = self.TrgmIndex.create(
+                {
+                    "field_id": field_category_name.id,
+                    "index_type": "gin",
+                    "lang": "en_US",
+                }
+            )
+            self.env.cr.execute(
+                "SELECT 1 FROM pg_indexes WHERE indexname = %s",
+                (trgm.index_name,),
+            )
+            self.assertIsNotNone(
+                self.env.cr.fetchone(),
+                "create() should have built the expression index",
+            )
+
+        Category = self.ResPartnerCategory.with_context(lang="en_US")
+        cat1, cat2, cat3 = Category.create(
+            [
+                {"name": "Goschaeftlich"},
+                {"name": "Goschaeftlech"},
+                {"name": "Retailer"},
+            ]
+        )
+
+        res = Category.search([("name", "%", "Goschaeftlic")])
+        self.assertIn(cat1.id, res.ids)
+        self.assertIn(cat2.id, res.ids)
+        self.assertNotIn(cat3.id, res.ids)
+
     def test_index_exists_unknown_field(self):
         self.assertFalse(
             self.TrgmIndex.index_exists("res.partner", "this_field_does_not_exist")

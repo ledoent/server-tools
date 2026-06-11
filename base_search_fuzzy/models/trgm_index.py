@@ -147,7 +147,9 @@ class TrgmIndex(models.Model):
         lang = self.lang
 
         if is_translate:
-            index_name = f"{column_name}_{lang}_{index_type}_idx"
+            # Lowercase: CREATE INDEX folds the unquoted identifier, and
+            # get_not_used_index compares it literally against pg_indexes.
+            index_name = f"{column_name}_{lang}_{index_type}_idx".lower()
         else:
             index_name = f"{column_name}_{index_type}_idx"
 
