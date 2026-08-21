@@ -16,12 +16,13 @@ browser DSN under **Settings → General Settings → Sentry Browser Monitoring
 
 No Odoo restart required — changes take effect on the next page load.
 
-**(b) Fallback — shared DSN via `odoo.conf` `[sentry]` section.** If the
-Connection fields above are left blank, the controller reads from the same
-`[sentry]` section the OCA server-side `sentry` module uses:
+**(b) Fallback — shared DSN via `odoo.conf`.** If the Connection fields
+above are left blank, the controller reads the same top-level `sentry_*`
+options the OCA server-side `sentry` module uses on the 18.0 series (the
+dedicated `[sentry]` section only exists from 19.0):
 
 ```ini
-[sentry]
+[options]
 sentry_dsn = https://<public_key>@sentry.example.com/<project_id>
 sentry_release = 1.3.2
 sentry_environment = production

@@ -37,15 +37,14 @@ The Sentry browser SDK ships **vendored inside the module** — no
 external CDN call, air-gapped friendly out of the box.
 
 **Standalone:** works on its own. Reads DSN / release / environment from
-the ``[sentry]`` section of ``odoo.conf``. Captures browser-side errors
+the ``sentry_*`` options in ``odoo.conf``. Captures browser-side errors
 only.
 
 **Better together with ``sentry``:** install alongside the server-side
 ```sentry`` <../sentry>`__ module to cluster client and server errors
 for the same user / release / environment into one Sentry issue. Both
-modules share the same ``[sentry]`` config section by convention — fill
-in the section once and client + server events land in the same Sentry
-project.
+modules share the same ``sentry_*`` config options by convention — fill
+them in once and client + server events land in the same Sentry project.
 
 Each tier above Tier 0 is **off by default** and surfaces an in-form
 warning about its perf cost when enabled. Sample rates are sliders so
@@ -93,14 +92,14 @@ Browser Monitoring → Connection**:
 
 No Odoo restart required — changes take effect on the next page load.
 
-**(b) Fallback — shared DSN via ``odoo.conf`` ``[sentry]`` section.** If
-the Connection fields above are left blank, the controller reads from
-the same ``[sentry]`` section the OCA server-side ``sentry`` module
-uses:
+**(b) Fallback — shared DSN via ``odoo.conf``.** If the Connection
+fields above are left blank, the controller reads the same top-level
+``sentry_*`` options the OCA server-side ``sentry`` module uses on the
+18.0 series (the dedicated ``[sentry]`` section only exists from 19.0):
 
 .. code:: ini
 
-   [sentry]
+   [options]
    sentry_dsn = https://<public_key>@sentry.example.com/<project_id>
    sentry_release = 1.3.2
    sentry_environment = production
@@ -320,7 +319,7 @@ sends the envelope but the server discards it — no client-side error.
 Usage
 =====
 
-Once Tier 0 is enabled and a DSN is in ``[sentry]``, the next page load
+Once Tier 0 is enabled and a DSN is configured, the next page load
 injects the (vendored) Sentry browser SDK and starts capturing errors.
 No further user action needed.
 
@@ -357,7 +356,7 @@ Known issues / Roadmap
 
 - **Server-side distributed-trace propagation** — ``release`` and
   ``environment`` are shared with the OCA ``sentry`` server-side module
-  by convention (same ``[sentry]`` section), and the browser already
+  by convention (same ``sentry_*`` options), and the browser already
   sends the right user context. Full distributed tracing (server span ⇄
   browser span correlation) would need OpenTelemetry hooks in the
   server-side ``sentry`` module too — out of scope for this module; will

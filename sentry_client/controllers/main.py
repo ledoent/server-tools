@@ -1,7 +1,6 @@
 # Copyright 2026 Ledoent
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
-from configparser import ConfigParser
 
 from odoo import http
 from odoo.http import request
@@ -9,31 +8,24 @@ from odoo.tools import config as odoo_config
 
 _logger = logging.getLogger(__name__)
 
+# The keys the server-side OCA `sentry` module reads on the 18.0 series:
+# plain options in odoo.conf's [options] section (the dedicated [sentry]
+# section only exists from 19.0).
+_SENTRY_CONF_KEYS = ("sentry_dsn", "sentry_environment", "sentry_release")
 
-def _read_sentry_section():
-    """Read the [sentry] section either from server_environment (if installed)
-    or directly from odoo.conf. Used as a fallback when the browser DSN /
-    release / environment are NOT set via `ir.config_parameter`; this keeps a
-    single-project deployment working out of the box when the same DSN is
-    shared with the server-side OCA `sentry` module.
+
+def _read_sentry_config():
+    """Read the server-side `sentry_*` options from the Odoo configuration.
+
+    Used as a fallback when the browser DSN / release / environment are NOT
+    set via `ir.config_parameter`; this keeps a single-project deployment
+    working out of the box when the same DSN is shared with the server-side
+    OCA `sentry` module, which on 18.0 is configured with top-level
+    `sentry_*` options in odoo.conf.
     """
-    try:
-        from odoo.addons.server_environment import serv_config
-
-        if serv_config.has_section("sentry"):
-            return dict(serv_config["sentry"])
-    except ImportError:
-        _logger.debug(
-            "server_environment not installed; reading [sentry] from odoo.conf"
-        )
-    cfg_path = odoo_config.get("config")
-    if not cfg_path:
-        return {}
-    cp = ConfigParser(interpolation=None)
-    cp.read(cfg_path)
-    if cp.has_section("sentry"):
-        return dict(cp["sentry"])
-    return {}
+    return {
+        key: odoo_config.get(key) for key in _SENTRY_CONF_KEYS if odoo_config.get(key)
+    }
 
 
 def _bundle_name(tracing, replay, feedback):
@@ -92,25 +84,18 @@ class SentryClientController(http.Controller):
 
         # DSN / environment / release resolution order:
         #   1. `ir.config_parameter` (UI-settable, per-database)
-        #   2. `[sentry]` section of odoo.conf (server-admin, shared with the
-        #      OCA `sentry` server-side module)
+        #   2. `sentry_*` options in odoo.conf (server-admin, the same keys
+        #      the OCA `sentry` server-side module reads on 18.0)
         # The two paths exist so platform-split deployments can give the
         # browser its own Sentry project (Sentry's recommended setup — JS
         # platform separate from the Python platform) while single-project
         # deployments still work without UI clicks.
-        sentry_conf = _read_sentry_section()
+        sentry_conf = _read_sentry_config()
 
-        def _resolve(icp_key, *conf_keys):
-            val = get(icp_key)
-            if val:
-                return val
-            for ck in conf_keys:
-                v = sentry_conf.get(ck)
-                if v:
-                    return v
-            return None
+        def _resolve(icp_key, conf_key):
+            return get(icp_key) or sentry_conf.get(conf_key) or None
 
-        dsn = _resolve("sentry_client.browser_dsn", "sentry_dsn", "dsn")
+        dsn = _resolve("sentry_client.browser_dsn", "sentry_dsn")
         if not dsn:
             return request.make_json_response({"enabled": False})
 
@@ -134,10 +119,8 @@ class SentryClientController(http.Controller):
         payload = {
             "enabled": True,
             "dsn": dsn,
-            "release": _resolve("sentry_client.release", "sentry_release", "release"),
-            "environment": _resolve(
-                "sentry_client.environment", "sentry_environment", "environment"
-            ),
+            "release": _resolve("sentry_client.release", "sentry_release"),
+            "environment": _resolve("sentry_client.environment", "sentry_environment"),
             "bundle_url": bundle_url,
             "profiling_addon_url": profiling_addon_url,
             "integrations": {

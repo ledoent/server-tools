@@ -4,9 +4,12 @@
 // Replaces Sentry's autoInject feedback widget — which would collide with
 // Odoo's Discuss bubble + activity systray icons — with a navbar launcher
 // button that opens the same modal dialog. The trigger is a plain
-// `btn btn-link` (the launcher idiom used by the messaging-menu and
-// user-menu systray items), not a Dropdown, since clicking it opens a
-// Sentry modal rather than an Owl Dropdown menu.
+// `o_nav_entry` button (the idiom the burger menu uses for a non-dropdown
+// navbar launcher — it picks up the navbar entry height/padding/hover
+// styling), not a Dropdown, since clicking it opens a Sentry modal rather
+// than an Owl Dropdown menu. Icon is fa-bullhorn (Sentry's own feedback
+// iconography) — deliberately NOT fa-bug, which is the debug-mode systray
+// icon sitting right next to it.
 /* global window, document */
 
 import {Component, useExternalListener, useState} from "@odoo/owl";

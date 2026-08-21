@@ -1,6 +1,6 @@
 * **Server-side distributed-trace propagation** — `release` and
   `environment` are shared with the OCA `sentry` server-side module by
-  convention (same `[sentry]` section), and the browser already sends
+  convention (same `sentry_*` options), and the browser already sends
   the right user context. Full distributed tracing (server span ⇄
   browser span correlation) would need OpenTelemetry hooks in the
   server-side `sentry` module too — out of scope for this module; will
