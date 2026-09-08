@@ -13,7 +13,9 @@ the `sentry_*` options in `odoo.conf`. Captures browser-side errors only.
 [`sentry`](../sentry) module to cluster client and server errors for the
 same user / release / environment into one Sentry issue. Both modules
 share the same `sentry_*` config options by convention — fill them in
-once and client + server events land in the same Sentry project.
+once and client + server events land in the same Sentry project. Each
+error is reported once: server-side exceptions by `sentry`, browser-side
+ones by this module.
 
 Each tier above Tier 0 is **off by default** and surfaces an in-form
 warning about its perf cost when enabled. Sample rates are sliders so

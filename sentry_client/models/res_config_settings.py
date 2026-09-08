@@ -1,5 +1,7 @@
 # Copyright 2026 Ledoent
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+from urllib.parse import urlsplit
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
@@ -50,16 +52,23 @@ class ResConfigSettings(models.TransientModel):
                         dsn=dsn,
                     )
                 )
+            if urlsplit(dsn).password:
+                raise ValidationError(
+                    self.env._(
+                        "Sentry Browser DSN must be a public DSN — it is served "
+                        "to every browser. Remove the ':<secret>' part."
+                    )
+                )
 
     # Connection — DSN and tag overrides. All three are optional; when blank,
-    # the controller falls back to the [sentry] section of odoo.conf so a
+    # the controller falls back to the `sentry_*` options in odoo.conf so a
     # single-project deployment shared with the OCA `sentry` server-side
     # module keeps working without UI clicks.
     sentry_client_browser_dsn = fields.Char(
         string="Browser DSN",
         config_parameter="sentry_client.browser_dsn",
         help="Public Sentry DSN for the browser project. Leave blank to "
-        "reuse the DSN from the [sentry] section of odoo.conf. Sentry "
+        "reuse the DSN from the `sentry_*` options in odoo.conf. Sentry "
         "recommends a separate project per platform (Python vs. "
         "JavaScript-Browser); set this to that project's DSN. Browser "
         "DSNs are public by design and safe to expose to end users.",
@@ -69,22 +78,22 @@ class ResConfigSettings(models.TransientModel):
         config_parameter="sentry_client.environment",
         help="Tags every browser event with this environment "
         "(e.g. 'production-web', 'staging-web'). Leave blank to inherit "
-        "from the [sentry] section of odoo.conf.",
+        "from the `sentry_*` options in odoo.conf.",
     )
     sentry_client_release = fields.Char(
         string="Release tag",
         config_parameter="sentry_client.release",
         help="Tags every browser event with this release identifier "
         "(e.g. the asset-bundle hash or a deploy SHA). Leave blank to "
-        "inherit from the [sentry] section of odoo.conf.",
+        "inherit from the `sentry_*` options in odoo.conf.",
     )
 
     # Tier 0 — always-free essentials
     sentry_client_enabled = fields.Boolean(
         string="Enable browser error reporting",
         config_parameter="sentry_client.enabled",
-        help="When enabled and a DSN is configured (either above or in the "
-        "[sentry] section of odoo.conf), the Sentry browser SDK is loaded "
+        help="When enabled and a DSN is configured (either above or via the "
+        "`sentry_dsn` option in odoo.conf), the Sentry browser SDK is loaded "
         "into the Odoo web client and captures uncaught JS errors and "
         "unhandled promise rejections.",
     )
@@ -101,6 +110,28 @@ class ResConfigSettings(models.TransientModel):
         string="Sentry SDK version",
         config_parameter="sentry_client.cdn_version",
         default="10.53.1",
+    )
+
+    # Scope and privacy — both off by default
+    sentry_client_capture_rpc_errors = fields.Boolean(
+        string="Report server-side errors from the browser",
+        config_parameter="sentry_client.capture_rpc_errors",
+        help="Errors raised by the Odoo server reach the browser as RPC "
+        "errors and show up in the standard error dialog. By default the "
+        "browser SDK only leaves a breadcrumb for them: the server-side "
+        "`sentry` module reports them with a full Python traceback, and "
+        "reporting them from the browser too creates duplicate issues. "
+        "Enable this only when the server-side module is NOT installed "
+        "and backend errors should still surface in Sentry.",
+    )
+    sentry_client_send_user_groups = fields.Boolean(
+        string="Tag events with the user's groups",
+        config_parameter="sentry_client.send_user_groups",
+        help="Attach the logged-in user's app categories as the "
+        "`odoo.category` tag and the full list of group names as an "
+        "`odoo` event context. Off by default: group membership is "
+        "personal data and is delivered to whatever Sentry instance the "
+        "DSN points at.",
     )
 
     # Tier 1 — performance monitoring

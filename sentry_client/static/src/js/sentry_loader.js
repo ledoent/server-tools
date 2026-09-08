@@ -86,33 +86,24 @@
         return integrations;
     }
 
-    // Drop the global-handlers re-capture of errors the OWL boundary already
-    // sent. Our boundary handler marks the wrapping error with
-    // `__sentry_owl_captured__` before calling captureException, and then
-    // `window.onunhandledrejection` fires later for the same rejection. This
-    // hook strips that second event so each OWL crash surfaces as one Sentry
-    // issue (carrying the `owl: true` tag) rather than two.
-    function dropDuplicateOwlRejection(event, hint) {
-        const original = hint && hint.originalException;
-        if (!original) {
-            return event;
+    // Backend: the module's entry in Odoo's error_handlers registry
+    // (owl_error_boundary.esm.js) sees every uncaught error the web client
+    // sees. Sentry's own capture paths — window.onerror/onunhandledrejection
+    // (GlobalHandlers) and the try/catch wrappers around timers and event
+    // handlers (BrowserApiErrors, which captures and rethrows) — would only
+    // produce a second event per crash, so they are dropped from the
+    // defaults there. Portal/website pages have no error service and keep them.
+    const BACKEND_REDUNDANT_INTEGRATIONS = ["GlobalHandlers", "BrowserApiErrors"];
+
+    function selectIntegrations(Sentry, conf, replayOn) {
+        const ours = buildIntegrations(Sentry, conf, replayOn);
+        if (!window.__sentry_client_owl_boundary__) {
+            return ours;
         }
-        // The OWL wrapping error carries the marker we set before capture.
-        // Its cause may carry it too (when the SDK unwraps via LinkedErrors).
-        const owlMarked =
-            original.__sentry_owl_captured__ ||
-            (original.cause && original.cause.__sentry_owl_captured__);
-        const mech =
-            event.exception &&
-            event.exception.values &&
-            event.exception.values[0] &&
-            event.exception.values[0].mechanism;
-        const isGlobalRejection =
-            mech && mech.type === "auto.browser.global_handlers.onunhandledrejection";
-        if (owlMarked && isGlobalRejection) {
-            return null;
-        }
-        return event;
+        return (defaults) =>
+            defaults
+                .filter((i) => !BACKEND_REDUNDANT_INTEGRATIONS.includes(i.name))
+                .concat(ours);
     }
 
     function buildInitOptions(Sentry, conf, replayOn) {
@@ -120,8 +111,7 @@
             dsn: conf.dsn,
             release: conf.release || undefined,
             environment: conf.environment || undefined,
-            integrations: buildIntegrations(Sentry, conf, replayOn),
-            beforeSend: dropDuplicateOwlRejection,
+            integrations: selectIntegrations(Sentry, conf, replayOn),
         };
         if (conf.integrations.tracing) {
             opts.tracesSampleRate = conf.traces_sample_rate;
@@ -154,11 +144,18 @@
         // Sentry clusters events by id alone. Email enrichment can be done
         // server-side in the OCA `sentry` module's before_send hook if needed.
         Sentry.setUser({id: conf.user_id});
-        if (Array.isArray(conf.groups) && conf.groups.length) {
-            Sentry.setTag("odoo.groups", conf.groups.join(","));
-        }
+        // Only present when the admin opted in (sentry_client.send_user_groups).
+        // Categories are short enough for a tag (Sentry caps tag values at 200
+        // chars); the full group list goes into an event context instead.
         if (Array.isArray(conf.categories) && conf.categories.length) {
             Sentry.setTag("odoo.category", conf.categories.join(","));
+        }
+        if (
+            Array.isArray(conf.groups) &&
+            conf.groups.length &&
+            typeof Sentry.setContext === "function"
+        ) {
+            Sentry.setContext("odoo", {groups: conf.groups});
         }
     }
 
@@ -265,6 +262,10 @@
             return;
         }
         const replayOn = shouldEnableReplay(conf);
+        // Read by owl_error_boundary.esm.js when deciding what to capture.
+        window.__sentry_client__ = {
+            captureRpcErrors: conf.capture_rpc_errors === true,
+        };
         Sentry.init(buildInitOptions(Sentry, conf, replayOn));
         Sentry.setTag("tab_id", getOrCreateTabId());
         Sentry.setTag("surface", deriveSurface());

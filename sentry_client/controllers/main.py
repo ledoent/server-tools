@@ -1,6 +1,7 @@
 # Copyright 2026 Ledoent
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
+from urllib.parse import urlsplit
 
 from odoo import http
 from odoo.http import request
@@ -26,6 +27,26 @@ def _read_sentry_config():
     return {
         key: odoo_config.get(key) for key in _SENTRY_CONF_KEYS if odoo_config.get(key)
     }
+
+
+def _public_dsn(dsn):
+    """Strip the legacy secret component from a DSN before it leaves the server.
+
+    A DSN is `scheme://public_key[:secret]@host/project`; the browser SDK only
+    needs the public key, and the secret (still accepted by the Python SDK)
+    must never reach a client. Values that don't parse are returned as-is —
+    the settings constraint and the SDK validate the shape.
+    """
+    if not dsn or "@" not in dsn:
+        return dsn
+    try:
+        if not urlsplit(dsn).password:
+            return dsn
+    except ValueError:
+        return dsn
+    scheme_userinfo, host_path = dsn.rsplit("@", 1)
+    scheme, userinfo = scheme_userinfo.split("://", 1)
+    return f"{scheme}://{userinfo.split(':', 1)[0]}@{host_path}"
 
 
 def _bundle_name(tracing, replay, feedback):
@@ -95,7 +116,7 @@ class SentryClientController(http.Controller):
         def _resolve(icp_key, conf_key):
             return get(icp_key) or sentry_conf.get(conf_key) or None
 
-        dsn = _resolve("sentry_client.browser_dsn", "sentry_dsn")
+        dsn = _public_dsn(_resolve("sentry_client.browser_dsn", "sentry_dsn"))
         if not dsn:
             return request.make_json_response({"enabled": False})
 
@@ -138,6 +159,10 @@ class SentryClientController(http.Controller):
                 "sentry_client.tier2_error_sample_rate", "1.0"
             ),
             "profiles_sample_rate": _rate("sentry_client.tier3_profiles_sample_rate"),
+            # Server-side exceptions reach the browser as RPC errors; the
+            # server-side `sentry` module already reports those with a Python
+            # traceback, so the browser skips them unless explicitly asked.
+            "capture_rpc_errors": _bool("sentry_client.capture_rpc_errors"),
         }
 
         user = request.env.user
@@ -145,22 +170,22 @@ class SentryClientController(http.Controller):
             payload["user_id"] = user.id
             if replay:
                 payload["replay_optout"] = bool(user.sentry_client_replay_optout)
-            # Ship role primitives so the browser SDK can tag every event
-            # with the user's groups + app categories. Downstream training
-            # corpora bucket sessions by these tags to keep "sales rep"
-            # behaviour separate from "accountant" behaviour. Group full
-            # names ("Sales / Salesperson") are easier to grok than xmlids
-            # in Sentry tag-search.
-            all_groups = user.sudo().groups_id
-            payload["groups"] = all_groups.mapped("full_name") or all_groups.mapped(
-                "name"
-            )
-            payload["categories"] = sorted(
-                {
-                    cat.name
-                    for cat in all_groups.mapped("category_id")
-                    if cat and cat.name
-                }
-            )
+            # Role primitives are opt-in: group membership is personal data,
+            # and the full list of group names blows past Sentry's 200-char
+            # tag limit for an administrator. When enabled the browser tags
+            # events with the (short) app categories and attaches the group
+            # names as an event context, where the limit doesn't apply.
+            if _bool("sentry_client.send_user_groups"):
+                all_groups = user.sudo().groups_id
+                payload["groups"] = all_groups.mapped("full_name") or all_groups.mapped(
+                    "name"
+                )
+                payload["categories"] = sorted(
+                    {
+                        cat.name
+                        for cat in all_groups.mapped("category_id")
+                        if cat and cat.name
+                    }
+                )
 
         return request.make_json_response(payload)

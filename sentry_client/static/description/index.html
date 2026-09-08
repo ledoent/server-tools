@@ -383,7 +383,9 @@ only.</p>
 <tt class="docutils literal">`sentry</tt> &lt;../sentry&gt;`__ module to cluster client and server errors
 for the same user / release / environment into one Sentry issue. Both
 modules share the same <tt class="docutils literal">sentry_*</tt> config options by convention — fill
-them in once and client + server events land in the same Sentry project.</p>
+them in once and client + server events land in the same Sentry project.
+Each error is reported once: server-side exceptions by <tt class="docutils literal">sentry</tt>,
+browser-side ones by this module.</p>
 <p>Each tier above Tier 0 is <strong>off by default</strong> and surfaces an in-form
 warning about its perf cost when enabled. Sample rates are sliders so
 admins can dial behaviour without a server restart. Individual users can
@@ -401,24 +403,25 @@ opt out of session replay via their own preferences page.</p>
 </ul>
 </li>
 <li><a class="reference internal" href="#user-preferences-privacy-per-user-session-replay-opt-out" id="toc-entry-8">3. User preferences → Privacy — per-user session-replay opt-out</a></li>
-<li><a class="reference internal" href="#owl-component-context-on-backend-errors" id="toc-entry-9">4. OWL component context on backend errors</a></li>
-<li><a class="reference internal" href="#browser-profiling-extra-setup" id="toc-entry-10">Browser profiling — extra setup</a></li>
-<li><a class="reference internal" href="#vendored-sentry-sdk" id="toc-entry-11">Vendored Sentry SDK</a></li>
-<li><a class="reference internal" href="#sentry-server-compatibility" id="toc-entry-12">Sentry server compatibility</a></li>
+<li><a class="reference internal" href="#settings-scope-and-privacy" id="toc-entry-9">4. Settings → Scope and privacy</a></li>
+<li><a class="reference internal" href="#owl-component-context-on-backend-errors" id="toc-entry-10">5. OWL component context on backend errors</a></li>
+<li><a class="reference internal" href="#browser-profiling-extra-setup" id="toc-entry-11">Browser profiling — extra setup</a></li>
+<li><a class="reference internal" href="#vendored-sentry-sdk" id="toc-entry-12">Vendored Sentry SDK</a></li>
+<li><a class="reference internal" href="#sentry-server-compatibility" id="toc-entry-13">Sentry server compatibility</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#usage" id="toc-entry-13">Usage</a><ul>
-<li><a class="reference internal" href="#per-user-opt-out" id="toc-entry-14">Per-user opt-out</a></li>
-<li><a class="reference internal" href="#owl-component-context" id="toc-entry-15">OWL component context</a></li>
+<li><a class="reference internal" href="#usage" id="toc-entry-14">Usage</a><ul>
+<li><a class="reference internal" href="#per-user-opt-out" id="toc-entry-15">Per-user opt-out</a></li>
+<li><a class="reference internal" href="#owl-component-context" id="toc-entry-16">OWL component context</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#known-issues-roadmap" id="toc-entry-16">Known issues / Roadmap</a></li>
-<li><a class="reference internal" href="#bug-tracker" id="toc-entry-17">Bug Tracker</a></li>
-<li><a class="reference internal" href="#credits" id="toc-entry-18">Credits</a><ul>
-<li><a class="reference internal" href="#authors" id="toc-entry-19">Authors</a></li>
-<li><a class="reference internal" href="#contributors" id="toc-entry-20">Contributors</a></li>
-<li><a class="reference internal" href="#other-credits" id="toc-entry-21">Other credits</a></li>
-<li><a class="reference internal" href="#maintainers" id="toc-entry-22">Maintainers</a></li>
+<li><a class="reference internal" href="#known-issues-roadmap" id="toc-entry-17">Known issues / Roadmap</a></li>
+<li><a class="reference internal" href="#bug-tracker" id="toc-entry-18">Bug Tracker</a></li>
+<li><a class="reference internal" href="#credits" id="toc-entry-19">Credits</a><ul>
+<li><a class="reference internal" href="#authors" id="toc-entry-20">Authors</a></li>
+<li><a class="reference internal" href="#contributors" id="toc-entry-21">Contributors</a></li>
+<li><a class="reference internal" href="#other-credits" id="toc-entry-22">Other credits</a></li>
+<li><a class="reference internal" href="#maintainers" id="toc-entry-23">Maintainers</a></li>
 </ul>
 </li>
 </ul>
@@ -487,7 +490,10 @@ fields above are left blank, the controller reads the same top-level
 <p>This path is convenient for single-project deployments that want both
 backend Python events and browser JavaScript events going to the same
 Sentry project. Editing <tt class="docutils literal">odoo.conf</tt> requires an Odoo restart.</p>
-<p>The UI value always wins when both are set.</p>
+<p>The UI value always wins when both are set. Whichever source the DSN
+comes from, the controller strips a legacy <tt class="docutils literal">:&lt;secret&gt;</tt> component
+before serving it — the browser only ever needs the public key — and the
+Settings form refuses a Browser DSN that carries one.</p>
 </div>
 <div class="section" id="settings-general-settings-sentry-browser-monitoring">
 <h2><a class="toc-backref" href="#toc-entry-3">2. Settings → General Settings → Sentry Browser Monitoring</a></h2>
@@ -535,16 +541,34 @@ registered for the opted-out user — no DOM observer, no recording.</p>
 Preferences → Privacy) and check <strong>Disable Sentry session replay</strong>.</p>
 <p>The toggle is self-writeable: users can manage it without administrator
 help.</p>
-<p>What leaves the server per user: events carry the numeric user id plus
-the user’s <tt class="docutils literal">res.groups</tt> names and categories as the <tt class="docutils literal">odoo.groups</tt> /
-<tt class="docutils literal">odoo.category</tt> tags (for triage filtering — e.g. admin vs portal). No
-email or display name is sent; replay masking covers all text, inputs
-and media by default. If group names are sensitive in your deployment,
-keep in mind they are delivered to whatever Sentry instance the DSN
-points at.</p>
+<p>What leaves the server per user: events carry the numeric user id only.
+No email or display name is sent; replay masking covers all text, inputs
+and media by default.</p>
+</div>
+<div class="section" id="settings-scope-and-privacy">
+<h2><a class="toc-backref" href="#toc-entry-9">4. Settings → Scope and privacy</a></h2>
+<p>Two toggles, both <strong>off by default</strong>:</p>
+<ul class="simple">
+<li><strong>Report server-side errors from the browser.</strong> Exceptions raised by
+the Odoo server reach the browser as RPC errors (the standard error
+dialog). The browser SDK does <em>not</em> report those: the server-side
+<tt class="docutils literal">sentry</tt> module already does, with a Python traceback, and a browser
+copy would be a duplicate issue. Instead the SDK leaves an
+<tt class="docutils literal">odoo.rpc</tt> breadcrumb and, when Tier 2 replay is on, uploads the
+buffered replay so the server-side event has a recording to link to
+(through the trace propagated on the request). Enable this only when
+the server-side module is not installed and backend errors should
+still surface in Sentry.</li>
+<li><strong>Tag events with the user’s groups.</strong> Adds the user’s app categories
+as the <tt class="docutils literal">odoo.category</tt> tag and the full list of <tt class="docutils literal">res.groups</tt> names
+as an <tt class="docutils literal">odoo</tt> event context (tags are capped at 200 characters by
+Sentry; the group list of an administrator is well past that). Group
+membership is personal data and is delivered to whatever Sentry
+instance the DSN points at — leave this off unless triage needs it.</li>
+</ul>
 </div>
 <div class="section" id="owl-component-context-on-backend-errors">
-<h2><a class="toc-backref" href="#toc-entry-9">4. OWL component context on backend errors</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-10">5. OWL component context on backend errors</a></h2>
 <p>When the OCA <tt class="docutils literal">sentry_client</tt> module is installed and Tier 0 is on, any
 OWL-component-raised exception in the backend (<tt class="docutils literal">/odoo/*</tt>) is captured
 to Sentry with two extra fields:</p>
@@ -556,9 +580,16 @@ render</li>
 <p>This complements (not replaces) Odoo’s standard <em>“Oops!”</em> dialog — both
 fire side by side. No configuration needed; the handler registers
 automatically when the module is installed.</p>
+<p>On the backend that handler is the <em>only</em> capture path: it sees every
+uncaught error and unhandled rejection the web client sees, so the SDK’s
+own capture integrations — <tt class="docutils literal">GlobalHandlers</tt> (<tt class="docutils literal">window.onerror</tt> /
+<tt class="docutils literal">onunhandledrejection</tt>) and <tt class="docutils literal">BrowserApiErrors</tt> (the try/catch
+wrappers around timers and event handlers) — are left out there and each
+crash produces exactly one event. Portal and website pages have no error
+service and keep the SDK defaults.</p>
 </div>
 <div class="section" id="browser-profiling-extra-setup">
-<h2><a class="toc-backref" href="#toc-entry-10">Browser profiling — extra setup</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-11">Browser profiling — extra setup</a></h2>
 <p>The JS Self-Profiling API requires the browser to receive a permission
 header on the document HTML response:</p>
 <pre class="literal-block">
@@ -577,7 +608,7 @@ sends profile payloads, but they will be empty — no client-side error,
 just no useful data in Sentry’s Profiling tab.</p>
 </div>
 <div class="section" id="vendored-sentry-sdk">
-<h2><a class="toc-backref" href="#toc-entry-11">Vendored Sentry SDK</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-12">Vendored Sentry SDK</a></h2>
 <p>The browser SDK ships <strong>vendored inside the module</strong> under
 <tt class="docutils literal"><span class="pre">sentry_client/static/lib/sentry/&lt;version&gt;/</span></tt>. The default <strong>Sentry SDK
 source URL</strong> points at this in-module path, so the browser loads the SDK
@@ -600,7 +631,7 @@ override <strong>Sentry SDK source URL</strong> to <tt class="docutils literal">
 in the Settings page.</p>
 </div>
 <div class="section" id="sentry-server-compatibility">
-<h2><a class="toc-backref" href="#toc-entry-12">Sentry server compatibility</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-13">Sentry server compatibility</a></h2>
 <p>The browser SDK talks to whatever Sentry instance you point the DSN at —
 either sentry.io or a self-hosted instance. Feature support depends on
 the Sentry server version:</p>
@@ -706,7 +737,7 @@ sends the envelope but the server discards it — no client-side error.</p>
 </div>
 </div>
 <div class="section" id="usage">
-<h1><a class="toc-backref" href="#toc-entry-13">Usage</a></h1>
+<h1><a class="toc-backref" href="#toc-entry-14">Usage</a></h1>
 <p>Once Tier 0 is enabled and a DSN is configured, the next page load
 injects the (vendored) Sentry browser SDK and starts capturing errors.
 No further user action needed.</p>
@@ -718,13 +749,13 @@ No further user action needed.</p>
 with your Odoo <tt class="docutils literal">user.id</tt>, <tt class="docutils literal">release</tt>, and <tt class="docutils literal">environment</tt>.</li>
 </ol>
 <div class="section" id="per-user-opt-out">
-<h2><a class="toc-backref" href="#toc-entry-14">Per-user opt-out</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-15">Per-user opt-out</a></h2>
 <p>Top-right avatar → My Profile → Preferences → Privacy → <strong>Disable Sentry
 session replay</strong>. Saves to your own user record. The opt-out only
 suppresses session replay; basic error capture (Tier 0) still fires.</p>
 </div>
 <div class="section" id="owl-component-context">
-<h2><a class="toc-backref" href="#toc-entry-15">OWL component context</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-16">OWL component context</a></h2>
 <p>When the backend OWL stack raises an exception (the usual “Oops!” dialog
 you see in the Odoo web client), the resulting Sentry event
 automatically carries:</p>
@@ -735,18 +766,29 @@ automatically carries:</p>
 <p>No configuration needed — the OCA <tt class="docutils literal">sentry_client</tt> module registers an
 entry in <tt class="docutils literal">&#64;web/core/error_handlers</tt> at install time. Standard Odoo
 error UX is unaffected.</p>
+<p>Errors that come back from the server (RPC errors, lost connection,
+expired session) are <em>not</em> reported from the browser by default — the
+server-side <tt class="docutils literal">sentry</tt> module owns those. They show up as <tt class="docutils literal">odoo.rpc</tt>
+breadcrumbs on the next browser event, and trigger a replay upload when
+Tier 2 is on. See CONFIGURE → <em>Scope and privacy</em> to change that.</p>
 </div>
 </div>
 <div class="section" id="known-issues-roadmap">
-<h1><a class="toc-backref" href="#toc-entry-16">Known issues / Roadmap</a></h1>
+<h1><a class="toc-backref" href="#toc-entry-17">Known issues / Roadmap</a></h1>
 <ul class="simple">
-<li><strong>Server-side distributed-trace propagation</strong> — <tt class="docutils literal">release</tt> and
-<tt class="docutils literal">environment</tt> are shared with the OCA <tt class="docutils literal">sentry</tt> server-side module
-by convention (same <tt class="docutils literal">sentry_*</tt> options), and the browser already
-sends the right user context. Full distributed tracing (server span ⇄
-browser span correlation) would need OpenTelemetry hooks in the
-server-side <tt class="docutils literal">sentry</tt> module too — out of scope for this module; will
-go in a follow-up PR against <tt class="docutils literal">sentry/</tt>.</li>
+<li><strong>Sentry Loader Script as an SDK source</strong> — the Loader
+(<tt class="docutils literal"><span class="pre">js.sentry-cdn.com/&lt;key&gt;.min.js</span></tt>) lets the SDK version, sampling
+and replay settings be managed from the Sentry UI. It owns
+<tt class="docutils literal">Sentry.init</tt>, so wiring it up means an <tt class="docutils literal">onLoad</tt> merge with the
+tier settings this module drives from the Settings page and a clear
+rule for which side wins. Candidate for a follow-up.</li>
+<li><strong>Span-level trace correlation</strong> — <tt class="docutils literal">browserTracingIntegration</tt>
+already sends <tt class="docutils literal"><span class="pre">sentry-trace</span></tt> / <tt class="docutils literal">baggage</tt> headers on same-origin
+requests and the server-side <tt class="docutils literal">sentry</tt> module’s WSGI middleware
+continues the trace, so browser and server <em>errors</em> link as-is.
+Correlating <em>spans</em> only needs <tt class="docutils literal">sentry_traces_sample_rate</tt> on the
+server side, which <tt class="docutils literal">sentry</tt> exposes. Nothing to build here;
+documenting the setup end to end is the gap.</li>
 <li><strong>OWL error-boundary depth</strong> — the current handler captures the
 failing component tree + props. Could also enrich with the action
 context (active model, record IDs, view type) by reading
@@ -759,7 +801,7 @@ could set the header conditionally when Tier 3 profiling is on.</li>
 </ul>
 </div>
 <div class="section" id="bug-tracker">
-<h1><a class="toc-backref" href="#toc-entry-17">Bug Tracker</a></h1>
+<h1><a class="toc-backref" href="#toc-entry-18">Bug Tracker</a></h1>
 <p>Bugs are tracked on <a class="reference external" href="https://github.com/OCA/server-tools/issues">GitHub Issues</a>.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
@@ -767,28 +809,28 @@ If you spotted it first, help us to smash it by providing a detailed and welcome
 <p>Do not contact contributors directly about support or help with technical issues.</p>
 </div>
 <div class="section" id="credits">
-<h1><a class="toc-backref" href="#toc-entry-18">Credits</a></h1>
+<h1><a class="toc-backref" href="#toc-entry-19">Credits</a></h1>
 <div class="section" id="authors">
-<h2><a class="toc-backref" href="#toc-entry-19">Authors</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-20">Authors</a></h2>
 <ul class="simple">
 <li>Ledoent</li>
 </ul>
 </div>
 <div class="section" id="contributors">
-<h2><a class="toc-backref" href="#toc-entry-20">Contributors</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-21">Contributors</a></h2>
 <ul class="simple">
 <li>Don Kendall &lt;<a class="reference external" href="mailto:dkendall&#64;ledoweb.com">dkendall&#64;ledoweb.com</a>&gt;</li>
 </ul>
 </div>
 <div class="section" id="other-credits">
-<h2><a class="toc-backref" href="#toc-entry-21">Other credits</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-22">Other credits</a></h2>
 <p>The development of this module is led by
 <a class="reference external" href="https://ledoweb.com">Ledoent</a>.</p>
 <p>Companion to the OCA <tt class="docutils literal">`sentry</tt> &lt;../sentry&gt;`__ module for server-side
 error capture.</p>
 </div>
 <div class="section" id="maintainers">
-<h2><a class="toc-backref" href="#toc-entry-22">Maintainers</a></h2>
+<h2><a class="toc-backref" href="#toc-entry-23">Maintainers</a></h2>
 <p>This module is maintained by the OCA.</p>
 <a class="reference external image-reference" href="https://odoo-community.org">
 <img alt="Odoo Community Association" src="https://odoo-community.org/logo.png" />

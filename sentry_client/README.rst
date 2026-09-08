@@ -45,6 +45,8 @@ only.
 for the same user / release / environment into one Sentry issue. Both
 modules share the same ``sentry_*`` config options by convention — fill
 them in once and client + server events land in the same Sentry project.
+Each error is reported once: server-side exceptions by ``sentry``,
+browser-side ones by this module.
 
 Each tier above Tier 0 is **off by default** and surfaces an in-form
 warning about its perf cost when enabled. Sample rates are sliders so
@@ -108,7 +110,10 @@ This path is convenient for single-project deployments that want both
 backend Python events and browser JavaScript events going to the same
 Sentry project. Editing ``odoo.conf`` requires an Odoo restart.
 
-The UI value always wins when both are set.
+The UI value always wins when both are set. Whichever source the DSN
+comes from, the controller strips a legacy ``:<secret>`` component
+before serving it — the browser only ever needs the public key — and the
+Settings form refuses a Browser DSN that carries one.
 
 2. Settings → General Settings → Sentry Browser Monitoring
 ----------------------------------------------------------
@@ -163,15 +168,33 @@ Preferences → Privacy) and check **Disable Sentry session replay**.
 The toggle is self-writeable: users can manage it without administrator
 help.
 
-What leaves the server per user: events carry the numeric user id plus
-the user's ``res.groups`` names and categories as the ``odoo.groups`` /
-``odoo.category`` tags (for triage filtering — e.g. admin vs portal). No
-email or display name is sent; replay masking covers all text, inputs
-and media by default. If group names are sensitive in your deployment,
-keep in mind they are delivered to whatever Sentry instance the DSN
-points at.
+What leaves the server per user: events carry the numeric user id only.
+No email or display name is sent; replay masking covers all text, inputs
+and media by default.
 
-4. OWL component context on backend errors
+4. Settings → Scope and privacy
+-------------------------------
+
+Two toggles, both **off by default**:
+
+- **Report server-side errors from the browser.** Exceptions raised by
+  the Odoo server reach the browser as RPC errors (the standard error
+  dialog). The browser SDK does *not* report those: the server-side
+  ``sentry`` module already does, with a Python traceback, and a browser
+  copy would be a duplicate issue. Instead the SDK leaves an
+  ``odoo.rpc`` breadcrumb and, when Tier 2 replay is on, uploads the
+  buffered replay so the server-side event has a recording to link to
+  (through the trace propagated on the request). Enable this only when
+  the server-side module is not installed and backend errors should
+  still surface in Sentry.
+- **Tag events with the user's groups.** Adds the user's app categories
+  as the ``odoo.category`` tag and the full list of ``res.groups`` names
+  as an ``odoo`` event context (tags are capped at 200 characters by
+  Sentry; the group list of an administrator is well past that). Group
+  membership is personal data and is delivered to whatever Sentry
+  instance the DSN points at — leave this off unless triage needs it.
+
+5. OWL component context on backend errors
 ------------------------------------------
 
 When the OCA ``sentry_client`` module is installed and Tier 0 is on, any
@@ -185,6 +208,14 @@ to Sentry with two extra fields:
 This complements (not replaces) Odoo's standard *"Oops!"* dialog — both
 fire side by side. No configuration needed; the handler registers
 automatically when the module is installed.
+
+On the backend that handler is the *only* capture path: it sees every
+uncaught error and unhandled rejection the web client sees, so the SDK's
+own capture integrations — ``GlobalHandlers`` (``window.onerror`` /
+``onunhandledrejection``) and ``BrowserApiErrors`` (the try/catch
+wrappers around timers and event handlers) — are left out there and each
+crash produces exactly one event. Portal and website pages have no error
+service and keep the SDK defaults.
 
 Browser profiling — extra setup
 -------------------------------
@@ -351,16 +382,28 @@ No configuration needed — the OCA ``sentry_client`` module registers an
 entry in ``@web/core/error_handlers`` at install time. Standard Odoo
 error UX is unaffected.
 
+Errors that come back from the server (RPC errors, lost connection,
+expired session) are *not* reported from the browser by default — the
+server-side ``sentry`` module owns those. They show up as ``odoo.rpc``
+breadcrumbs on the next browser event, and trigger a replay upload when
+Tier 2 is on. See CONFIGURE → *Scope and privacy* to change that.
+
 Known issues / Roadmap
 ======================
 
-- **Server-side distributed-trace propagation** — ``release`` and
-  ``environment`` are shared with the OCA ``sentry`` server-side module
-  by convention (same ``sentry_*`` options), and the browser already
-  sends the right user context. Full distributed tracing (server span ⇄
-  browser span correlation) would need OpenTelemetry hooks in the
-  server-side ``sentry`` module too — out of scope for this module; will
-  go in a follow-up PR against ``sentry/``.
+- **Sentry Loader Script as an SDK source** — the Loader
+  (``js.sentry-cdn.com/<key>.min.js``) lets the SDK version, sampling
+  and replay settings be managed from the Sentry UI. It owns
+  ``Sentry.init``, so wiring it up means an ``onLoad`` merge with the
+  tier settings this module drives from the Settings page and a clear
+  rule for which side wins. Candidate for a follow-up.
+- **Span-level trace correlation** — ``browserTracingIntegration``
+  already sends ``sentry-trace`` / ``baggage`` headers on same-origin
+  requests and the server-side ``sentry`` module's WSGI middleware
+  continues the trace, so browser and server *errors* link as-is.
+  Correlating *spans* only needs ``sentry_traces_sample_rate`` on the
+  server side, which ``sentry`` exposes. Nothing to build here;
+  documenting the setup end to end is the gap.
 - **OWL error-boundary depth** — the current handler captures the
   failing component tree + props. Could also enrich with the action
   context (active model, record IDs, view type) by reading

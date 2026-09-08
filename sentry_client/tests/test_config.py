@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from odoo.tests import HttpCase, tagged
 
-from ..controllers.main import _bundle_name, _read_sentry_config
+from ..controllers.main import _bundle_name, _public_dsn, _read_sentry_config
 
 
 @tagged("post_install", "-at_install")
@@ -69,6 +69,30 @@ class TestReadSentryConfig(HttpCase):
                 "sentry_release": "1.2.3",
             },
         )
+
+
+@tagged("post_install", "-at_install")
+class TestPublicDsn(HttpCase):
+    def test_strips_legacy_secret(self):
+        self.assertEqual(
+            _public_dsn("https://key:s3cret@sentry.example.com/42"),
+            "https://key@sentry.example.com/42",
+        )
+
+    def test_keeps_port_and_path(self):
+        self.assertEqual(
+            _public_dsn("http://key:s3cret@sentry.example.com:9000/api/42"),
+            "http://key@sentry.example.com:9000/api/42",
+        )
+
+    def test_public_dsn_unchanged(self):
+        dsn = "https://key@o1.ingest.sentry.io/42"
+        self.assertEqual(_public_dsn(dsn), dsn)
+
+    def test_empty_and_malformed_pass_through(self):
+        self.assertIsNone(_public_dsn(None))
+        self.assertEqual(_public_dsn(""), "")
+        self.assertEqual(_public_dsn("not-a-dsn"), "not-a-dsn")
 
 
 @tagged("post_install", "-at_install")
@@ -179,10 +203,23 @@ class TestConfigEndpoint(HttpCase):
         self.assertEqual(payload["user_id"], self.env.ref("base.user_admin").id)
         self.assertNotIn("email", json.dumps(payload).lower())
 
-    def test_authenticated_payload_includes_groups_and_categories(self):
-        # Browser SDK tags every event with the user's role primitives so
-        # downstream training corpora can bucket sessions by app category.
+    def test_authenticated_payload_omits_groups_by_default(self):
+        # Group membership is personal data (and the joined names exceed
+        # Sentry's 200-char tag limit for an admin) — opt-in only.
         self._set("sentry_client.enabled", "True")
+        self.authenticate("admin", "admin")
+        with patch(
+            "odoo.addons.sentry_client.controllers.main._read_sentry_config",
+            return_value={"sentry_dsn": "https://x@example.com/1"},
+        ):
+            payload = self._get_config()
+        self.assertIn("user_id", payload)
+        self.assertNotIn("groups", payload)
+        self.assertNotIn("categories", payload)
+
+    def test_authenticated_payload_includes_groups_when_opted_in(self):
+        self._set("sentry_client.enabled", "True")
+        self._set("sentry_client.send_user_groups", "True")
         self.authenticate("admin", "admin")
         with patch(
             "odoo.addons.sentry_client.controllers.main._read_sentry_config",
@@ -297,6 +334,43 @@ class TestConfigEndpoint(HttpCase):
             payload = self._get_config()
         self.assertEqual(payload["environment"], "production")
         self.assertEqual(payload["release"], "1.3.2")
+
+    def test_capture_rpc_errors_off_by_default(self):
+        self._set("sentry_client.enabled", "True")
+        with patch(
+            "odoo.addons.sentry_client.controllers.main._read_sentry_config",
+            return_value={"sentry_dsn": "https://x@example.com/1"},
+        ):
+            payload = self._get_config()
+        self.assertFalse(payload["capture_rpc_errors"])
+        self._set("sentry_client.capture_rpc_errors", "True")
+        with patch(
+            "odoo.addons.sentry_client.controllers.main._read_sentry_config",
+            return_value={"sentry_dsn": "https://x@example.com/1"},
+        ):
+            payload = self._get_config()
+        self.assertTrue(payload["capture_rpc_errors"])
+
+    def test_conf_dsn_secret_never_served(self):
+        # The server-side DSN may carry the legacy `:<secret>` part, which
+        # the Python SDK still accepts. The public endpoint must not leak it.
+        self._set("sentry_client.enabled", "True")
+        self._set("sentry_client.browser_dsn", "")
+        with patch(
+            "odoo.addons.sentry_client.controllers.main._read_sentry_config",
+            return_value={"sentry_dsn": "https://key:s3cret@example.com/1"},
+        ):
+            payload = self._get_config()
+        self.assertEqual(payload["dsn"], "https://key@example.com/1")
+        self.assertNotIn("s3cret", json.dumps(payload))
+
+    def test_browser_dsn_validation_rejects_secret(self):
+        from odoo.exceptions import ValidationError
+
+        settings = self.env["res.config.settings"].create({})
+        with self.assertRaises(ValidationError):
+            settings.sentry_client_browser_dsn = "https://key:s3cret@example.com/1"
+            settings._check_sentry_client_browser_dsn()
 
     def test_browser_dsn_validation_rejects_malformed(self):
         from odoo.exceptions import ValidationError

@@ -1,33 +1,27 @@
 // Copyright 2026 Ledoent
 // License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 //
-// OWL-aware error handler — registers a Sentry-aware entry in Odoo's
-// @web/core/error_handlers registry so component-tree context lands in
-// Sentry events alongside the existing Odoo Oops! dialog flow.
+// Sentry-aware entry in Odoo's @web/core/error_handlers registry. On the
+// backend this is the ONLY capture path: sentry_loader.js switches Sentry's
+// own window.onerror / onunhandledrejection handlers off when this module is
+// present, so every uncaught error is reported exactly once, with the OWL
+// component-tree context, alongside the standard Odoo Oops! dialog flow.
 //
 // Backend-only: OWL lives under web.assets_backend. Frontend portal/website
-// runs on plain templates with no OWL tree.
+// runs on plain templates with no OWL tree (and keeps the global handlers).
 /* global window */
 
+import {
+    ConnectionAbortedError,
+    ConnectionLostError,
+    RPCError,
+    RequestEntityTooLargeError,
+} from "@web/core/network/rpc";
 import {registry} from "@web/core/registry";
 
-// Walk the `.cause` chain marking each error with the dedup sentinel that
-// sentry_loader.js's beforeSend hook reads. Odoo wraps the OwlError in an
-// UncaughtPromiseError before our handler runs, but the `unhandledrejection`
-// event's `reason` is the INNER OwlError — so a marker only on `target` would
-// miss it. Capping at 8 levels guards against pathological cycles. Frozen
-// error objects (rare) silently no-op via try/catch.
-function markChain(target) {
-    let cur = target;
-    for (let i = 0; i < 8 && cur; i++) {
-        try {
-            cur.__sentry_owl_captured__ = true;
-        } catch {
-            // Frozen error object: best-effort only.
-        }
-        cur = cur.cause;
-    }
-}
+// Tells the loader (a plain script that runs after the SDK bundle arrives)
+// that the registry handler is in place and the global handlers can go.
+window.__sentry_client_owl_boundary__ = true;
 
 function buildExtra(target) {
     const extra = {
@@ -45,20 +39,56 @@ function buildExtra(target) {
     return extra;
 }
 
+// Errors that originate on the server (or on the wire) and that Odoo
+// already surfaces in its own dialogs. The server-side `sentry` module
+// reports the exception with a full Python traceback; a browser-side copy
+// would be a duplicate issue with less information.
+function isServerSideError(error) {
+    return (
+        error instanceof RPCError ||
+        error instanceof ConnectionLostError ||
+        error instanceof ConnectionAbortedError ||
+        error instanceof RequestEntityTooLargeError
+    );
+}
+
+function noteServerSideError(sdk, error) {
+    const data = (error instanceof RPCError && error.data) || {};
+    const message = String(data.message || error.message || "").slice(0, 200);
+    if (typeof sdk.addBreadcrumb === "function") {
+        sdk.addBreadcrumb({
+            category: "odoo.rpc",
+            level: "error",
+            message: `${error.name}: ${message}`,
+            data: {exception: error.exceptionName, model: error.model},
+        });
+    }
+    // Replay in buffer mode (error sampling) only uploads when the SDK
+    // captures an exception. Backend errors never reach that path, so
+    // flush the buffer here: the replay and the server-side event share
+    // the trace propagated on the request, and Sentry links them.
+    if (!(error instanceof RPCError)) {
+        return;
+    }
+    const replay = typeof sdk.getReplay === "function" && sdk.getReplay();
+    if (replay && typeof replay.flush === "function") {
+        Promise.resolve(replay.flush()).catch(() => undefined);
+    }
+}
+
 function sentryHandler(env, error, originalError) {
     const sdk = window.Sentry;
     if (!sdk || typeof sdk.captureException !== "function") {
         return false;
     }
+    const conf = window.__sentry_client__ || {};
+    if (isServerSideError(originalError) && !conf.captureRpcErrors) {
+        noteServerSideError(sdk, originalError);
+        return false;
+    }
     // Capture the WRAPPING error so Sentry's built-in LinkedErrors integration
-    // expands `.cause` into nested exception_id entries inside ONE event. If
-    // we captured originalError directly here, the global onunhandledrejection
-    // handler would still fire on the wrapping error (Odoo's chain doesn't
-    // swallow it), yielding two separate issues for the same crash. With this
-    // approach Sentry's Dedupe integration drops the global re-capture (same
-    // outer message + stacktrace).
+    // expands `.cause` into nested exception entries inside ONE event.
     const target = error || originalError;
-    markChain(target);
     sdk.captureException(target, {
         tags: {owl: true},
         extra: buildExtra(target),
@@ -68,4 +98,8 @@ function sentryHandler(env, error, originalError) {
     return false;
 }
 
-registry.category("error_handlers").add("sentry_client.owl", sentryHandler);
+// Sequence 1: run before any handler that might return true and stop the
+// chain (Odoo's own start at 97; website's visitor swallower sits at 0).
+registry
+    .category("error_handlers")
+    .add("sentry_client.owl", sentryHandler, {sequence: 1});

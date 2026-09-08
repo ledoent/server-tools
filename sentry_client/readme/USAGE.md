@@ -28,3 +28,9 @@ carries:
 No configuration needed — the OCA `sentry_client` module registers an
 entry in `@web/core/error_handlers` at install time. Standard Odoo error
 UX is unaffected.
+
+Errors that come back from the server (RPC errors, lost connection,
+expired session) are *not* reported from the browser by default — the
+server-side `sentry` module owns those. They show up as `odoo.rpc`
+breadcrumbs on the next browser event, and trigger a replay upload when
+Tier 2 is on. See CONFIGURE → *Scope and privacy* to change that.

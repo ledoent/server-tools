@@ -1,10 +1,15 @@
-* **Server-side distributed-trace propagation** — `release` and
-  `environment` are shared with the OCA `sentry` server-side module by
-  convention (same `sentry_*` options), and the browser already sends
-  the right user context. Full distributed tracing (server span ⇄
-  browser span correlation) would need OpenTelemetry hooks in the
-  server-side `sentry` module too — out of scope for this module; will
-  go in a follow-up PR against `sentry/`.
+* **Sentry Loader Script as an SDK source** — the Loader
+  (`js.sentry-cdn.com/<key>.min.js`) lets the SDK version, sampling and
+  replay settings be managed from the Sentry UI. It owns `Sentry.init`,
+  so wiring it up means an `onLoad` merge with the tier settings this
+  module drives from the Settings page and a clear rule for which side
+  wins. Candidate for a follow-up.
+* **Span-level trace correlation** — `browserTracingIntegration` already
+  sends `sentry-trace` / `baggage` headers on same-origin requests and the
+  server-side `sentry` module's WSGI middleware continues the trace, so
+  browser and server *errors* link as-is. Correlating *spans* only needs
+  `sentry_traces_sample_rate` on the server side, which `sentry` exposes.
+  Nothing to build here; documenting the setup end to end is the gap.
 * **OWL error-boundary depth** — the current handler captures the
   failing component tree + props. Could also enrich with the action
   context (active model, record IDs, view type) by reading

@@ -32,7 +32,10 @@ This path is convenient for single-project deployments that want both
 backend Python events and browser JavaScript events going to the same
 Sentry project. Editing `odoo.conf` requires an Odoo restart.
 
-The UI value always wins when both are set.
+The UI value always wins when both are set. Whichever source the DSN comes
+from, the controller strips a legacy `:<secret>` component before serving
+it — the browser only ever needs the public key — and the Settings form
+refuses a Browser DSN that carries one.
 
 ## 2. Settings → General Settings → Sentry Browser Monitoring
 
@@ -81,14 +84,31 @@ Preferences → Privacy) and check **Disable Sentry session replay**.
 The toggle is self-writeable: users can manage it without administrator
 help.
 
-What leaves the server per user: events carry the numeric user id plus the
-user's `res.groups` names and categories as the `odoo.groups` /
-`odoo.category` tags (for triage filtering — e.g. admin vs portal). No
+What leaves the server per user: events carry the numeric user id only. No
 email or display name is sent; replay masking covers all text, inputs and
-media by default. If group names are sensitive in your deployment, keep in
-mind they are delivered to whatever Sentry instance the DSN points at.
+media by default.
 
-## 4. OWL component context on backend errors
+## 4. Settings → Scope and privacy
+
+Two toggles, both **off by default**:
+
+* **Report server-side errors from the browser.** Exceptions raised by the
+  Odoo server reach the browser as RPC errors (the standard error dialog).
+  The browser SDK does *not* report those: the server-side `sentry` module
+  already does, with a Python traceback, and a browser copy would be a
+  duplicate issue. Instead the SDK leaves an `odoo.rpc` breadcrumb and,
+  when Tier 2 replay is on, uploads the buffered replay so the server-side
+  event has a recording to link to (through the trace propagated on the
+  request). Enable this only when the server-side module is not installed
+  and backend errors should still surface in Sentry.
+* **Tag events with the user's groups.** Adds the user's app categories as
+  the `odoo.category` tag and the full list of `res.groups` names as an
+  `odoo` event context (tags are capped at 200 characters by Sentry; the
+  group list of an administrator is well past that). Group membership is
+  personal data and is delivered to whatever Sentry instance the DSN
+  points at — leave this off unless triage needs it.
+
+## 5. OWL component context on backend errors
 
 When the OCA `sentry_client` module is installed and Tier 0 is on, any
 OWL-component-raised exception in the backend (`/odoo/*`) is captured to
@@ -100,6 +120,14 @@ Sentry with two extra fields:
 This complements (not replaces) Odoo's standard *"Oops!"* dialog — both
 fire side by side. No configuration needed; the handler registers
 automatically when the module is installed.
+
+On the backend that handler is the *only* capture path: it sees every
+uncaught error and unhandled rejection the web client sees, so the SDK's
+own capture integrations — `GlobalHandlers` (`window.onerror` /
+`onunhandledrejection`) and `BrowserApiErrors` (the try/catch wrappers
+around timers and event handlers) — are left out there and each crash
+produces exactly one event. Portal and website pages have no error
+service and keep the SDK defaults.
 
 ## Browser profiling — extra setup
 
