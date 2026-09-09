@@ -1,3 +1,7 @@
+.. image:: https://odoo-community.org/readme-banner-image
+   :target: https://odoo-community.org/get-involved?utm_source=readme
+   :alt: Odoo Community Association
+
 ====================
 Sentry — Browser SDK
 ====================
@@ -13,17 +17,17 @@ Sentry — Browser SDK
 .. |badge1| image:: https://img.shields.io/badge/maturity-Beta-yellow.png
     :target: https://odoo-community.org/page/development-status
     :alt: Beta
-.. |badge2| image:: https://img.shields.io/badge/licence-AGPL--3-blue.png
+.. |badge2| image:: https://img.shields.io/badge/license-AGPL--3-blue.png
     :target: http://www.gnu.org/licenses/agpl-3.0-standalone.html
     :alt: License: AGPL-3
 .. |badge3| image:: https://img.shields.io/badge/github-OCA%2Fserver--tools-lightgray.png?logo=github
-    :target: https://github.com/OCA/server-tools/tree/18.0/sentry_client
+    :target: https://github.com/OCA/server-tools/tree/19.0/sentry_client
     :alt: OCA/server-tools
 .. |badge4| image:: https://img.shields.io/badge/weblate-Translate%20me-F47D42.png
-    :target: https://translation.odoo-community.org/projects/server-tools-18-0/server-tools-18-0-sentry_client
+    :target: https://translation.odoo-community.org/projects/server-tools-19-0/server-tools-19-0-sentry_client
     :alt: Translate me on Weblate
 .. |badge5| image:: https://img.shields.io/badge/runboat-Try%20me-875A7B.png
-    :target: https://runboat.odoo-community.org/builds?repo=OCA/server-tools&target_branch=18.0
+    :target: https://runboat.odoo-community.org/builds?repo=OCA/server-tools&target_branch=19.0
     :alt: Try me on Runboat
 
 |badge1| |badge2| |badge3| |badge4| |badge5|
@@ -37,14 +41,15 @@ The Sentry browser SDK ships **vendored inside the module** — no
 external CDN call, air-gapped friendly out of the box.
 
 **Standalone:** works on its own. Reads DSN / release / environment from
-the ``sentry_*`` options in ``odoo.conf``. Captures browser-side errors
+the ``[sentry]`` section of ``odoo.conf``. Captures browser-side errors
 only.
 
 **Better together with ``sentry``:** install alongside the server-side
 ```sentry`` <../sentry>`__ module to cluster client and server errors
 for the same user / release / environment into one Sentry issue. Both
-modules share the same ``sentry_*`` config options by convention — fill
-them in once and client + server events land in the same Sentry project.
+modules share the same ``[sentry]`` config section by convention — fill
+in the section once and client + server events land in the same Sentry
+project.
 
 Each tier above Tier 0 is **off by default** and surfaces an in-form
 warning about its perf cost when enabled. Sample rates are sliders so
@@ -92,14 +97,14 @@ Browser Monitoring → Connection**:
 
 No Odoo restart required — changes take effect on the next page load.
 
-**(b) Fallback — shared DSN via ``odoo.conf``.** If the Connection
-fields above are left blank, the controller reads the same top-level
-``sentry_*`` options the OCA server-side ``sentry`` module uses on the
-18.0 series (the dedicated ``[sentry]`` section only exists from 19.0):
+**(b) Fallback — shared DSN via ``odoo.conf`` ``[sentry]`` section.** If
+the Connection fields above are left blank, the controller reads from
+the same ``[sentry]`` section the OCA server-side ``sentry`` module
+uses:
 
 .. code:: ini
 
-   [options]
+   [sentry]
    sentry_dsn = https://<public_key>@sentry.example.com/<project_id>
    sentry_release = 1.3.2
    sentry_environment = production
@@ -167,12 +172,6 @@ Preferences → Privacy) and check **Disable Sentry session replay**.
 
 The toggle is self-writeable: users can manage it without administrator
 help.
-
-What leaves the server per user: events carry the numeric user id plus
-the app categories of the user's groups (e.g. ``Sales,Accounting``) as
-the ``odoo.category`` tag, cut to Sentry's 200-character tag limit. No
-group names, email or display name are sent; replay masking covers all
-text, inputs and media by default.
 
 4. Backend errors and OWL component context
 -------------------------------------------
@@ -332,7 +331,7 @@ sends the envelope but the server discards it — no client-side error.
 Usage
 =====
 
-Once Tier 0 is enabled and a DSN is configured, the next page load
+Once Tier 0 is enabled and a DSN is in ``[sentry]``, the next page load
 injects the (vendored) Sentry browser SDK and starts capturing errors.
 No further user action needed.
 
@@ -383,7 +382,7 @@ Bug Tracker
 Bugs are tracked on `GitHub Issues <https://github.com/OCA/server-tools/issues>`_.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
-`feedback <https://github.com/OCA/server-tools/issues/new?body=module:%20sentry_client%0Aversion:%2018.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
+`feedback <https://github.com/OCA/server-tools/issues/new?body=module:%20sentry_client%0Aversion:%2019.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**>`_.
 
 Do not contact contributors directly about support or help with technical issues.
 
@@ -430,6 +429,6 @@ Current `maintainer <https://odoo-community.org/page/maintainer-role>`__:
 
 |maintainer-dnplkndll| 
 
-This module is part of the `OCA/server-tools <https://github.com/OCA/server-tools/tree/18.0/sentry_client>`_ project on GitHub.
+This module is part of the `OCA/server-tools <https://github.com/OCA/server-tools/tree/19.0/sentry_client>`_ project on GitHub.
 
 You are welcome to contribute. To learn how please visit https://odoo-community.org/page/Contribute.
