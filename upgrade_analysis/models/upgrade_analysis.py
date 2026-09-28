@@ -8,6 +8,7 @@
 import ast
 import logging
 import os
+import re
 from copy import deepcopy
 
 from lxml import etree
@@ -81,10 +82,26 @@ class UpgradeAnalysis(models.Model):
             res = upgrade_path[0]
         self.upgrade_path = res
 
+    @staticmethod
+    def _series_string(version):
+        """The leading "<major>.<minor>" of an Odoo version string."""
+        match = re.match(r"\d+(\.\d+)?", version or "")
+        return match.group() if match else (version or "")
+
+    def _remote_series(self):
+        """Series number of the remote instance, as a float.
+
+        odoo.release.version is a bare "19.0" only for a source checkout;
+        packaged builds append a build date, so it cannot go to float().
+        """
+        self.ensure_one()
+        series = self._series_string(self.config_id.version)
+        return float(series) if series else 0.0
+
     def _get_remote_model(self, connection, model):
         self.ensure_one()
         if model == "record":
-            if float(self.config_id.version) < 14.0:
+            if self._remote_series() < 14.0:
                 return connection.env["openupgrade.record"]
             else:
                 return connection.env["upgrade.record"]
@@ -665,7 +682,7 @@ class UpgradeAnalysis(models.Model):
             )
         ]
 
-        start_version = connection.version
+        start_version = self._series_string(connection.version)
         end_version = release.major_version
         module_width = 51
         description_width = 49
