@@ -2,4 +2,4 @@
 - Enric Tobella \<<etobella@creublanca.es>\>
 - Tony Galmiche \<<tony.galmiche@infosaone.com>\>
 - Nils Coenen \<<nils.coenen@nico-solutions.de>\>
-
+- Don Kendall \<<dkendall@ledoweb.com>\>
