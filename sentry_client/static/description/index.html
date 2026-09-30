@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <meta name="generator" content="Docutils: https://docutils.sourceforge.io/" />
-<title>README.rst</title>
+<title>Sentry — Browser SDK</title>
 <style type="text/css">
 
 /*
@@ -374,7 +374,7 @@ ul.auto-toc {
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !! source digest: sha256:2806bcb76ed0eabb88da4ccee41b12bf8b2e013efd155c3bf592a56d77828c63
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! -->
-<p><a class="reference external image-reference" href="https://odoo-community.org/page/development-status"><img alt="Beta" src="https://img.shields.io/badge/maturity-Beta-yellow.png" /></a> <a class="reference external image-reference" href="http://www.gnu.org/licenses/agpl-3.0-standalone.html"><img alt="License: AGPL-3" src="https://img.shields.io/badge/license-AGPL--3-blue.png" /></a> <a class="reference external image-reference" href="https://github.com/OCA/server-tools/tree/19.0/sentry_client"><img alt="OCA/server-tools" src="https://img.shields.io/badge/github-OCA%2Fserver--tools-lightgray.png?logo=github" /></a> <a class="reference external image-reference" href="https://translation.odoo-community.org/projects/server-tools-19-0/server-tools-19-0-sentry_client"><img alt="Translate me on Weblate" src="https://img.shields.io/badge/weblate-Translate%20me-F47D42.png" /></a> <a class="reference external image-reference" href="https://runboat.odoo-community.org/builds?repo=OCA/server-tools&amp;target_branch=19.0"><img alt="Try me on Runboat" src="https://img.shields.io/badge/runboat-Try%20me-875A7B.png" /></a></p>
+<p><a class="reference external image-reference" href="https://odoo-community.org/page/development-status"><img alt="Beta" src="https://img.shields.io/badge/maturity-Beta-yellow.png" /></a> <a class="reference external image-reference" href="http://www.gnu.org/licenses/agpl-3.0-standalone.html"><img alt="License: AGPL-3" src="https://img.shields.io/badge/license-AGPL--3-blue.png" /></a> <a class="reference external image-reference" href="https://github.com/OCA/server-tools/tree/20.0/sentry_client"><img alt="OCA/server-tools" src="https://img.shields.io/badge/github-OCA%2Fserver--tools-lightgray.png?logo=github" /></a> <a class="reference external image-reference" href="https://translation.odoo-community.org/projects/server-tools-20-0/server-tools-20-0-sentry_client"><img alt="Translate me on Weblate" src="https://img.shields.io/badge/weblate-Translate%20me-F47D42.png" /></a> <a class="reference external image-reference" href="https://runboat.odoo-community.org/builds?repo=OCA/server-tools&amp;target_branch=20.0"><img alt="Try me on Runboat" src="https://img.shields.io/badge/runboat-Try%20me-875A7B.png" /></a></p>
 <p>Capture uncaught JS errors and unhandled promise rejections in the Odoo
 web client to Sentry, with optional Performance Monitoring
 (BrowserTracing), Session Replay, Browser CPU Profiling, and Console-log
@@ -442,9 +442,9 @@ dedicated browser DSN under <strong>Settings → General Settings → Sentry
 Browser Monitoring → Connection</strong>:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="26%" />
-<col width="37%" />
-<col width="37%" />
+<col width="17%" />
+<col width="58%" />
+<col width="25%" />
 </colgroup>
 <thead valign="bottom">
 <tr><th class="head">Field</th>
@@ -454,14 +454,11 @@ Browser Monitoring → Connection</strong>:</p>
 </thead>
 <tbody valign="top">
 <tr><td><strong>Browser DSN</strong></td>
-<td><tt class="docutils literal"><span class="pre">https://&lt;p</span>
-<span class="pre">ublic_key&gt;&#64;sentry.exam</span>
-<span class="pre">ple.com/&lt;project_id&gt;</span></tt></td>
+<td><tt class="docutils literal"><span class="pre">https://&lt;public_key&gt;&#64;sentry.example.com/&lt;project_id&gt;</span></tt></td>
 <td>Public DSN of the
 JavaScript project.
-Safe to embed in
-client code per
-Sentry’s docs.</td>
+Safe to embed in client
+code per Sentry’s docs.</td>
 </tr>
 <tr><td><strong>Environment</strong></td>
 <td><tt class="docutils literal"><span class="pre">production-web</span></tt></td>
@@ -470,8 +467,7 @@ event. May differ from
 the backend env tag.</td>
 </tr>
 <tr><td><strong>Release</strong></td>
-<td>asset-bundle hash or
-deploy SHA</td>
+<td>asset-bundle hash or deploy SHA</td>
 <td>Tags every browser
 event. May differ from
 the Odoo Python
@@ -620,9 +616,9 @@ either sentry.io or a self-hosted instance. Feature support depends on
 the Sentry server version:</p>
 <table border="1" class="docutils">
 <colgroup>
-<col width="33%" />
-<col width="33%" />
-<col width="33%" />
+<col width="21%" />
+<col width="21%" />
+<col width="58%" />
 </colgroup>
 <thead valign="bottom">
 <tr><th class="head">Feature</th>
@@ -635,80 +631,45 @@ server</th>
 <tr><td>Tier 0 — error
 capture</td>
 <td>v9.0+</td>
-<td>Basic event ingest,
-supported by every
-modern Sentry.</td>
+<td>Basic event ingest, supported by every modern Sentry.</td>
 </tr>
 <tr><td>Tier 1 — performance
 / tracing</td>
 <td>v10.0+</td>
-<td>The tracing UI
-shipped in Sentry
-10.</td>
+<td>The tracing UI shipped in Sentry 10.</td>
 </tr>
 <tr><td>Tier 2 — session
 replay</td>
 <td>v22.10.0+ (Oct 2022)
 + feature flag</td>
-<td>Replay ingest was
-introduced in
-self-hosted 22.10.
-The feature must
-also be enabled on
-the server: set
-<tt class="docutils literal">SENTRY_FEATURES[
-&quot;organizations:sessi
-<span class="pre">on-replay&quot;]</span> = True</tt>
-(and <tt class="docutils literal"><span class="pre">…-ui</span></tt>,
-<tt class="docutils literal"><span class="pre">…-re</span>
-<span class="pre">cording-scrubbing</span></tt>)
-in
-<tt class="docutils literal">sentry.conf.py</tt>,
-then restart <tt class="docutils literal">web</tt>
-+
-<tt class="docutils literal">ingest-
-<span class="pre">replay-recordings</span></tt>.
-Without the flag,
-browser envelopes
-arrive at
-``
-/api/&lt;n&gt;/envelope/``
-but are silently
-discarded — no UI
-surface, no error.</td>
+<td>Replay ingest was introduced in self-hosted 22.10. The
+feature must also be enabled on the server: set
+<tt class="docutils literal"><span class="pre">SENTRY_FEATURES[&quot;organizations:session-replay&quot;]</span> = True</tt>
+(and <tt class="docutils literal"><span class="pre">…-ui</span></tt>, <tt class="docutils literal"><span class="pre">…-recording-scrubbing</span></tt>) in
+<tt class="docutils literal">sentry.conf.py</tt>, then restart <tt class="docutils literal">web</tt> +
+<tt class="docutils literal"><span class="pre">ingest-replay-recordings</span></tt>. Without the flag, browser
+envelopes arrive at <tt class="docutils literal"><span class="pre">/api/&lt;n&gt;/envelope/</span></tt> but are
+silently discarded — no UI surface, no error.</td>
 </tr>
 <tr><td>Tier 3 — feedback
 widget</td>
 <td>v23.6.0+ (Jun 2023)</td>
-<td>The modern
-programmatic
-feedback API. Older
-versions still work
-with the legacy
-<tt class="docutils literal">Sentr
-y.showReportDialog</tt>
-path, which this
-module does not use.</td>
+<td>The modern programmatic feedback API. Older versions still
+work with the legacy <tt class="docutils literal">Sentry.showReportDialog</tt> path,
+which this module does not use.</td>
 </tr>
 <tr><td>Tier 3 — browser
 profiling</td>
 <td>v24.0+ (Jan 2024)</td>
-<td>Plus the
-<tt class="docutils literal"><span class="pre">Document-Po</span>
-licy: <span class="pre">js-profiling</span></tt>
-header (see above).</td>
+<td>Plus the <tt class="docutils literal"><span class="pre">Document-Policy:</span> <span class="pre">js-profiling</span></tt> header (see
+above).</td>
 </tr>
 <tr><td>Tier 3 — console-log
 capture</td>
 <td>v25.0+ (Mar 2025)</td>
-<td>Sentry Logs API.
-Server versions
-before v25 will
-ingest the events as
-a generic log
-envelope; the
-dedicated Logs UI
-requires v25+.</td>
+<td>Sentry Logs API. Server versions before v25 will ingest
+the events as a generic log envelope; the dedicated Logs
+UI requires v25+.</td>
 </tr>
 </tbody>
 </table>
@@ -770,7 +731,7 @@ could set the header conditionally when Tier 3 profiling is on.</li>
 <p>Bugs are tracked on <a class="reference external" href="https://github.com/OCA/server-tools/issues">GitHub Issues</a>.
 In case of trouble, please check there if your issue has already been reported.
 If you spotted it first, help us to smash it by providing a detailed and welcomed
-<a class="reference external" href="https://github.com/OCA/server-tools/issues/new?body=module:%20sentry_client%0Aversion:%2019.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**">feedback</a>.</p>
+<a class="reference external" href="https://github.com/OCA/server-tools/issues/new?body=module:%20sentry_client%0Aversion:%2020.0%0A%0A**Steps%20to%20reproduce**%0A-%20...%0A%0A**Current%20behavior**%0A%0A**Expected%20behavior**">feedback</a>.</p>
 <p>Do not contact contributors directly about support or help with technical issues.</p>
 </div>
 <div class="section" id="credits">
@@ -805,7 +766,7 @@ mission is to support the collaborative development of Odoo features and
 promote its widespread use.</p>
 <p>Current <a class="reference external" href="https://odoo-community.org/page/maintainer-role">maintainer</a>:</p>
 <p><a class="reference external image-reference" href="https://github.com/dnplkndll"><img alt="dnplkndll" src="https://github.com/dnplkndll.png?size=40px" /></a></p>
-<p>This module is part of the <a class="reference external" href="https://github.com/OCA/server-tools/tree/19.0/sentry_client">OCA/server-tools</a> project on GitHub.</p>
+<p>This module is part of the <a class="reference external" href="https://github.com/OCA/server-tools/tree/20.0/sentry_client">OCA/server-tools</a> project on GitHub.</p>
 <p>You are welcome to contribute. To learn how please visit <a class="reference external" href="https://odoo-community.org/page/Contribute">https://odoo-community.org/page/Contribute</a>.</p>
 </div>
 </div>
