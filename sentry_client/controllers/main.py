@@ -86,16 +86,12 @@ class SentryClientController(http.Controller):
         already gated by the session cookie.
         """
         params = request.env["ir.config_parameter"].sudo()
-        get = params.get_param
 
         def _bool(key):
-            return get(key, "False") == "True"
+            return params.get_bool(key)
 
-        def _rate(key, default="0.0"):
-            try:
-                return max(0.0, min(1.0, float(get(key, default))))
-            except (TypeError, ValueError):
-                return float(default)
+        def _rate(key, default=0.0):
+            return max(0.0, min(1.0, params.get_float(key, default)))
 
         if not _bool("sentry_client.enabled"):
             return request.make_json_response({"enabled": False})
@@ -111,7 +107,7 @@ class SentryClientController(http.Controller):
         sentry_conf = _read_sentry_section()
 
         def _resolve(icp_key, *conf_keys):
-            val = get(icp_key)
+            val = params.get_str(icp_key)
             if val:
                 return val
             for ck in conf_keys:
@@ -130,10 +126,10 @@ class SentryClientController(http.Controller):
         profiling = _bool("sentry_client.tier3_profiling_enabled")
         logs = _bool("sentry_client.tier3_logs_enabled")
 
-        cdn_base = get(
+        cdn_base = params.get_str(
             "sentry_client.cdn_base", "/sentry_client/static/lib/sentry"
         ).rstrip("/")
-        cdn_version = get("sentry_client.cdn_version", "10.53.1")
+        cdn_version = params.get_str("sentry_client.cdn_version", "10.53.1")
         bundle_url = (
             f"{cdn_base}/{cdn_version}/{_bundle_name(tracing, replay, feedback)}"
         )
@@ -162,7 +158,7 @@ class SentryClientController(http.Controller):
                 "sentry_client.tier2_session_sample_rate"
             ),
             "replay_error_sample_rate": _rate(
-                "sentry_client.tier2_error_sample_rate", "1.0"
+                "sentry_client.tier2_error_sample_rate", 1.0
             ),
             "profiles_sample_rate": _rate("sentry_client.tier3_profiles_sample_rate"),
         }

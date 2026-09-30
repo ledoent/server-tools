@@ -181,7 +181,7 @@ class ResConfigSettings(models.TransientModel):
         for rec in self:
             if rec.sentry_client_tier1_tracing_enabled:
                 rec.sentry_client_tier1_warning = self.env._(
-                    "Adds roughly 5–10%% per-request overhead at sample rate 1.0 "
+                    "Adds roughly 5–10% per-request overhead at sample rate 1.0 "
                     "and instruments every fetch/XHR. Recommended in production: "
                     "0.05 or below. In development, 1.0 is fine."
                 )
