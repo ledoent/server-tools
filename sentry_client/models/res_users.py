@@ -13,12 +13,11 @@ class ResUsers(models.Model):
         "Enable this to keep that recording off for your own sessions, "
         "regardless of the database-wide Tier 2 toggle. Server-wide error "
         "capture (Tier 0) is unaffected.",
+        # 20.0 deleted SELF_READABLE_FIELDS / SELF_WRITEABLE_FIELDS and gates
+        # writes on res.users per field instead: _has_field_access denies write
+        # unless the field carries user_writeable (res_users.py:586-597).
+        # Without this a normal employee cannot set their own opt-out --
+        # fields_get even forces readonly=True in the payload -- which is the
+        # whole point of the field.
+        user_writeable=True,
     )
-
-    @property
-    def SELF_READABLE_FIELDS(self):
-        return super().SELF_READABLE_FIELDS + ["sentry_client_replay_optout"]
-
-    @property
-    def SELF_WRITEABLE_FIELDS(self):
-        return super().SELF_WRITEABLE_FIELDS + ["sentry_client_replay_optout"]

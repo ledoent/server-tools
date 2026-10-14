@@ -5,7 +5,7 @@ import tempfile
 import textwrap
 from unittest.mock import patch
 
-from odoo.tests import HttpCase, tagged
+from odoo.tests import HttpCase, new_test_user, tagged
 
 from ..controllers.main import _bundle_name, _public_dsn, _read_sentry_section
 
@@ -87,7 +87,7 @@ class TestConfigEndpoint(HttpCase):
         self.params = self.env["ir.config_parameter"].sudo()
 
     def _set(self, key, value):
-        self.params.set_param(key, value)
+        self.params.set_str(key, value)
 
     def _get_config(self):
         resp = self.url_open("/sentry_client/config.json")
@@ -358,6 +358,35 @@ class TestConfigEndpoint(HttpCase):
         settings = self.env["res.config.settings"].create({})
         settings.sentry_client_browser_dsn = "https://abc123@sentry.example.com/42"
         settings._check_sentry_client_browser_dsn()  # no raise
+
+    def test_replay_optout_writeable_by_plain_employee(self):
+        """A normal employee must be able to set their own opt-out.
+
+        20.0 dropped SELF_WRITEABLE_FIELDS and gates writes on res.users per
+        field via user_writeable (base/models/res_users.py:586-597). Every other
+        test here runs as superuser, which bypasses that check entirely, so
+        without this one the field could silently become unwritable for exactly
+        the users it exists for.
+        """
+        employee = new_test_user(
+            self.env, login="sentry_employee", groups="base.group_user"
+        )
+        as_self = self.env["res.users"].with_user(employee).browse(employee.id)
+
+        field = as_self._fields["sentry_client_replay_optout"]
+        self.assertTrue(
+            getattr(field, "user_writeable", False),
+            "sentry_client_replay_optout must carry user_writeable=True",
+        )
+        self.assertFalse(
+            as_self.fields_get(["sentry_client_replay_optout"])[
+                "sentry_client_replay_optout"
+            ]["readonly"],
+            "the field must not come back readonly for a plain employee",
+        )
+
+        as_self.write({"sentry_client_replay_optout": True})
+        self.assertTrue(as_self.sentry_client_replay_optout)
 
     def test_replay_optout_only_when_replay_on(self):
         self._set("sentry_client.enabled", "True")

@@ -9,17 +9,16 @@
 // Sentry modal rather than an Owl Dropdown menu.
 /* global window */
 
-import {Component} from "@odoo/owl";
+import {Component, usePlugin} from "@odoo/owl";
 import {_t} from "@web/core/l10n/translation";
+import {NotificationPlugin} from "@web/core/notifications/notification_plugin";
 import {registry} from "@web/core/registry";
-import {useService} from "@web/core/utils/hooks";
 
 export class SentryFeedbackSystray extends Component {
     static template = "sentry_client.FeedbackSystray";
-    static props = {};
 
     setup() {
-        this.notification = useService("notification");
+        this.notification = usePlugin(NotificationPlugin);
         this.title = _t("Report a bug");
     }
 
