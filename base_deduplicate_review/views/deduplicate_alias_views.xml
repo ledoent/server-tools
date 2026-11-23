@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2026 Ledo Enterprises
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="view_deduplicate_alias_list" model="ir.ui.view">
+        <field name="name">deduplicate.alias.list</field>
+        <field name="model">deduplicate.alias</field>
+        <field name="arch" type="xml">
+            <list create="0" edit="0" delete="0">
+                <field name="create_date" string="Merged On" />
+                <field name="create_uid" string="Merged By" />
+                <field name="res_model_name" />
+                <field name="source_name" />
+                <field name="source_res_id" optional="hide" />
+                <field name="master_name" />
+                <field name="master_res_id" optional="hide" />
+                <field name="identifiers_text" />
+                <field name="group_id" optional="show" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_deduplicate_alias_search" model="ir.ui.view">
+        <field name="name">deduplicate.alias.search</field>
+        <field name="model">deduplicate.alias</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="source_name" />
+                <field name="res_model_name" />
+                <field
+                    name="identifier_ids"
+                    string="Identifier"
+                    filter_domain="[('identifier_ids.value', 'ilike', self)]"
+                />
+                <group name="group_by">
+                    <filter
+                        name="gb_model"
+                        string="Model"
+                        context="{'group_by': 'res_model_name'}"
+                    />
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_deduplicate_alias" model="ir.actions.act_window">
+        <field name="name">Merged Records</field>
+        <field name="res_model">deduplicate.alias</field>
+        <field name="view_mode">list</field>
+        <field name="search_view_id" ref="view_deduplicate_alias_search" />
+    </record>
+</odoo>
