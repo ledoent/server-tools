@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2026 Ledo Enterprises
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="view_deduplicate_group_list" model="ir.ui.view">
+        <field name="name">deduplicate.group.list</field>
+        <field name="model">deduplicate.group</field>
+        <field name="arch" type="xml">
+            <list create="0" sample="1">
+                <field name="name" />
+                <field name="rule_id" optional="show" />
+                <field name="res_model_id" optional="hide" />
+                <field name="kind" optional="show" />
+                <field name="record_count" />
+                <field name="score" optional="hide" />
+                <field
+                    name="state"
+                    widget="badge"
+                    decoration-info="state == 'to_review'"
+                    decoration-warning="state == 'validated'"
+                    decoration-success="state == 'merged'"
+                    decoration-muted="state == 'discarded'"
+                />
+                <field name="validated_by_id" optional="hide" />
+                <field name="merged_by_id" optional="hide" />
+            </list>
+        </field>
+    </record>
+
+    <record id="view_deduplicate_group_form" model="ir.ui.view">
+        <field name="name">deduplicate.group.form</field>
+        <field name="model">deduplicate.group</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <header>
+                    <button
+                        name="action_validate"
+                        type="object"
+                        string="Validate"
+                        icon="check"
+                        class="oe_highlight"
+                        invisible="state != 'to_review' or not require_validation"
+                        groups="base_deduplicate_review.group_deduplicate_reviewer"
+                    />
+                    <button
+                        name="action_merge"
+                        type="object"
+                        string="Merge"
+                        icon="call_merge"
+                        class="oe_highlight"
+                        invisible="state not in ('to_review', 'validated') or (require_validation and state != 'validated')"
+                        groups="base_deduplicate_review.group_deduplicate_manager"
+                        confirm="Merge into the record kept? The other records are removed and every reference to them moves to it."
+                    />
+                    <button
+                        name="action_discard"
+                        type="object"
+                        string="Not Duplicates"
+                        icon="close"
+                        invisible="state not in ('to_review', 'validated')"
+                        groups="base_deduplicate_review.group_deduplicate_reviewer"
+                    />
+                    <button
+                        name="action_reopen"
+                        type="object"
+                        string="Reopen"
+                        icon="undo"
+                        invisible="state not in ('validated', 'discarded')"
+                        groups="base_deduplicate_review.group_deduplicate_reviewer"
+                    />
+                    <button
+                        name="action_refresh_usage"
+                        type="object"
+                        string="Count Usage"
+                        icon="refresh"
+                        invisible="state == 'merged'"
+                    />
+                    <field
+                        name="state"
+                        widget="statusbar"
+                        statusbar_visible="to_review,validated,merged"
+                    />
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" />
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="res_model_id" />
+                            <field name="res_model_name" invisible="1" />
+                            <field name="rule_id" invisible="not rule_id" />
+                            <field name="kind" />
+                            <field name="score" invisible="not score" />
+                            <field name="require_validation" invisible="1" />
+                        </group>
+                        <group>
+                            <field
+                                name="validated_by_id"
+                                invisible="not validated_by_id"
+                            />
+                            <field name="validated_on" invisible="not validated_on" />
+                            <field name="merged_by_id" invisible="not merged_by_id" />
+                            <field name="merged_on" invisible="not merged_on" />
+                            <field
+                                name="discarded_by_id"
+                                invisible="not discarded_by_id"
+                            />
+                            <field name="discarded_on" invisible="not discarded_on" />
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Records" name="records">
+                            <field name="record_ids" readonly="state != 'to_review'">
+                                <list
+                                    editable="bottom"
+                                    create="0"
+                                    delete="0"
+                                    decoration-bf="is_master"
+                                    decoration-muted="excluded or not record_exists"
+                                >
+                                    <field name="group_kind" column_invisible="1" />
+                                    <field name="group_state" column_invisible="1" />
+                                    <field name="res_model_name" column_invisible="1" />
+                                    <field
+                                        name="is_master"
+                                        widget="boolean"
+                                        readonly="1"
+                                    />
+                                    <field
+                                        name="is_source"
+                                        readonly="1"
+                                        column_invisible="parent.kind != 'candidates'"
+                                    />
+                                    <field name="name" readonly="1" />
+                                    <field name="res_id" readonly="1" optional="hide" />
+                                    <field name="values_text" optional="show" />
+                                    <field name="usage_count" optional="show" />
+                                    <field name="usage_text" optional="hide" />
+                                    <field name="record_active" optional="hide" />
+                                    <field name="record_exists" column_invisible="1" />
+                                    <field
+                                        name="excluded"
+                                        widget="boolean_toggle"
+                                        column_invisible="parent.kind == 'candidates'"
+                                    />
+                                    <button
+                                        name="action_set_master"
+                                        type="object"
+                                        string="Keep This"
+                                        icon="star"
+                                        invisible="is_master or group_state != 'to_review' or (group_kind == 'candidates' and is_source)"
+                                    />
+                                    <button
+                                        name="action_open_record"
+                                        type="object"
+                                        string="Open"
+                                        icon="open_in_new"
+                                        invisible="not record_exists"
+                                    />
+                                </list>
+                            </field>
+                        </page>
+                        <page
+                            string="Evidence"
+                            name="evidence"
+                            invisible="not evidence_text"
+                        >
+                            <field name="evidence_text" />
+                        </page>
+                        <page
+                            string="Merged"
+                            name="merged"
+                            invisible="state != 'merged'"
+                        >
+                            <field name="alias_ids">
+                                <list>
+                                    <field name="source_name" />
+                                    <field name="source_res_id" />
+                                    <field name="identifiers_text" />
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                    <field
+                        name="note"
+                        placeholder="Why this decision, for the next reviewer"
+                    />
+                </sheet>
+                <chatter />
+            </form>
+        </field>
+    </record>
+
+    <record id="view_deduplicate_group_search" model="ir.ui.view">
+        <field name="name">deduplicate.group.search</field>
+        <field name="model">deduplicate.group</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" />
+                <field name="rule_id" />
+                <field name="res_model_id" />
+                <field name="external_key" groups="base.group_no_one" />
+                <filter
+                    name="to_review"
+                    string="To Review"
+                    domain="[('state', '=', 'to_review')]"
+                />
+                <filter
+                    name="validated"
+                    string="Validated"
+                    domain="[('state', '=', 'validated')]"
+                />
+                <filter
+                    name="merged"
+                    string="Merged"
+                    domain="[('state', '=', 'merged')]"
+                />
+                <filter
+                    name="discarded"
+                    string="Not Duplicates"
+                    domain="[('state', '=', 'discarded')]"
+                />
+                <separator />
+                <filter
+                    name="from_rule"
+                    string="From Rules"
+                    domain="[('source', '=', 'rule')]"
+                />
+                <filter
+                    name="proposed"
+                    string="Proposed"
+                    domain="[('source', '=', 'external')]"
+                />
+                <group name="group_by">
+                    <filter
+                        name="gb_rule"
+                        string="Rule"
+                        context="{'group_by': 'rule_id'}"
+                    />
+                    <filter
+                        name="gb_model"
+                        string="Model"
+                        context="{'group_by': 'res_model_id'}"
+                    />
+                    <filter
+                        name="gb_state"
+                        string="Status"
+                        context="{'group_by': 'state'}"
+                    />
+                </group>
+                <searchpanel>
+                    <field name="res_model_id" icon="database" string="Models" />
+                </searchpanel>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_deduplicate_group" model="ir.actions.act_window">
+        <field name="name">Duplicates</field>
+        <field name="path">deduplication</field>
+        <field name="res_model">deduplicate.group</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_deduplicate_group_search" />
+        <field name="context">{'search_default_to_review': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No duplicates to review</p>
+            <p>
+                Groups appear here when a deduplication rule finds records that
+                match, or when an import proposes them.
+            </p>
+        </field>
+    </record>
+</odoo>

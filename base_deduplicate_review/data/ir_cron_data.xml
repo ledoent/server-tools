@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2026 Ledo Enterprises
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <record id="ir_cron_find_duplicates" model="ir.cron">
+        <field name="name">Deduplication: Find Duplicates</field>
+        <field name="model_id" ref="model_deduplicate_rule" />
+        <field name="state">code</field>
+        <field name="code">model._cron_find_duplicates()</field>
+        <field name="active" eval="True" />
+        <field name="interval_number" eval="1" />
+        <field name="interval_type">days</field>
+        <field
+            name="nextcall"
+            eval="(DateTime.now().replace(hour=2, minute=0) + timedelta(days=1)).strftime('%Y-%m-%d %H:%M:%S')"
+        />
+    </record>
+</odoo>

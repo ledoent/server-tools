@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2026 Ledo Enterprises
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <template id="notification">
+        <p>
+            <t t-out="count" />
+            new groups of possible duplicate
+            <t t-out="model_label" />
+            records are waiting for review (rule
+            <t t-out="rule.name" />).
+        </p>
+    </template>
+</odoo>

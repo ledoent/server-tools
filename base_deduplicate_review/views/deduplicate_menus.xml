@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Copyright 2026 Ledo Enterprises
+     License AGPL-3.0 or later (https://www.gnu.org/licenses/agpl). -->
+<odoo>
+    <menuitem
+        id="menu_deduplicate_groups"
+        name="Duplicates"
+        parent="data_recycle.menu_data_cleaning_root"
+        action="action_deduplicate_group"
+        sequence="5"
+        groups="group_deduplicate_reviewer"
+    />
+    <menuitem
+        id="menu_deduplicate_aliases"
+        name="Merged Records"
+        parent="data_recycle.menu_data_cleaning_root"
+        action="action_deduplicate_alias"
+        sequence="20"
+        groups="group_deduplicate_reviewer"
+    />
+    <menuitem
+        id="menu_deduplicate_rules"
+        name="Deduplication"
+        parent="data_recycle.menu_data_cleaning_config_rules"
+        action="action_deduplicate_rule"
+        sequence="5"
+        groups="group_deduplicate_manager"
+    />
+</odoo>
